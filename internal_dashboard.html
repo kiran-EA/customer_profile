@@ -1,0 +1,1984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LP Data Platform — Internal</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:     #0d1117;
+  --bg2:    #161b22;
+  --bg3:    #1c2333;
+  --bg4:    #21262d;
+  --border: #30363d;
+  --border2:#484f58;
+  --cyan:   #00d4ff;
+  --cyan-d: #0ea5c9;
+  --green:  #22c55e;
+  --green-d:#16a34a;
+  --amber:  #f59e0b;
+  --red:    #ef4444;
+  --red-d:  #b91c1c;
+  --purple: #a855f7;
+  --blue:   #3b82f6;
+  --text:   #e6edf3;
+  --text2:  #8b949e;
+  --text3:  #6e7681;
+  --mono:   'JetBrains Mono', monospace;
+  --sans:   'Inter', sans-serif;
+  --display:'Syne', sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{font-size:13px;height:100%;overflow:hidden} select{overflow:visible!important}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);display:flex;height:100vh;line-height:1.5}
+
+/* ── scrollbar ── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* ════ SIDEBAR ════════════════════════════════════════ */
+.sidebar{
+  width:220px;flex-shrink:0;background:var(--bg2);
+  border-right:1px solid var(--border);
+  position:fixed;top:0;left:0;bottom:0;z-index:200;
+  display:flex;flex-direction:column;
+}
+.sb-logo{
+  padding:20px 18px 16px;
+  border-bottom:1px solid var(--border);
+}
+.sb-logo h1{
+  font-family:var(--display);font-size:16px;
+  background:linear-gradient(135deg,var(--cyan),var(--blue));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  letter-spacing:.02em;
+}
+.sb-logo p{font-family:var(--mono);font-size:9.5px;color:var(--text3);margin-top:4px;letter-spacing:.06em}
+.sb-logo .ver{display:inline-block;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-family:var(--mono);font-size:9px;color:var(--cyan);margin-top:5px}
+
+.sb-grp{padding:14px 8px 4px}
+.sb-grp-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;padding:0 10px 8px}
+.sb-item{
+  display:flex;align-items:center;gap:9px;
+  padding:8px 10px;border-radius:6px;cursor:pointer;
+  color:var(--text2);font-size:12.5px;font-weight:500;
+  transition:all .15s;margin-bottom:1px;
+}
+.sb-item:hover{background:var(--bg3);color:var(--text)}
+.sb-item.active{background:rgba(0,212,255,.1);color:var(--cyan);border:1px solid rgba(0,212,255,.2)}
+.sb-item .ic{font-size:14px;width:18px;text-align:center}
+.sb-item .badge-alert{margin-left:auto;background:var(--red);color:#fff;font-size:9px;font-family:var(--mono);padding:1px 5px;border-radius:8px;font-weight:600}
+
+.sb-footer{margin-top:auto;padding:12px 12px 14px;border-top:1px solid var(--border)}
+.sb-btn{
+  width:100%;padding:8px;background:var(--bg3);border:1px solid var(--border);
+  border-radius:6px;color:var(--text2);cursor:pointer;
+  font-family:var(--mono);font-size:11px;transition:all .15s;margin-bottom:8px;
+}
+.sb-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.sb-ts{font-family:var(--mono);font-size:9.5px;color:var(--text3);line-height:1.7}
+
+/* ════ MAIN ═══════════════════════════════════════════ */
+.main{margin-left:220px;padding:24px 28px;flex:1;height:100vh;overflow-y:auto;overflow-x:hidden}
+.page{display:none;animation:fadeIn .25s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── topbar ── */
+.topbar{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px}
+.tb-left h2{font-family:var(--display);font-size:22px;color:var(--text)}
+.tb-left p{font-size:11.5px;color:var(--text3);margin-top:3px;font-family:var(--mono)}
+.live-chip{display:flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:6px 12px;font-family:var(--mono);font-size:10.5px;color:var(--text2)}
+.dot-green{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1;box-shadow:0 0 4px var(--green)}50%{opacity:.3;box-shadow:none}}
+
+/* ── KPI grid ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.kpi{
+  background:var(--bg2);border:1px solid var(--border);border-radius:10px;
+  padding:16px 18px;position:relative;overflow:hidden;
+  transition:border-color .2s;
+}
+.kpi:hover{border-color:var(--border2)}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:10px 10px 0 0}
+.kpi.cy::before{background:var(--cyan)}
+.kpi.gn::before{background:var(--green)}
+.kpi.rd::before{background:var(--red)}
+.kpi.am::before{background:var(--amber)}
+.kpi.pu::before{background:var(--purple)}
+.kpi.bl::before{background:var(--blue)}
+.kpi-ico{position:absolute;right:14px;top:12px;font-size:22px;opacity:.1}
+.kpi-lbl{font-family:var(--mono);font-size:9.5px;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:7px}
+.kpi-val{font-family:var(--display);font-size:26px;line-height:1;color:var(--text)}
+.kpi-sub{font-size:11px;color:var(--text3);margin-top:5px;font-family:var(--mono)}
+
+/* ── chart cards ── */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:16px}
+.cc{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px 20px}
+.cc.full{grid-column:1/-1}
+.cc-hd{margin-bottom:14px}
+.cc-title{font-size:12.5px;font-weight:600;color:var(--text)}
+.cc-sub{font-size:10.5px;color:var(--text3);margin-top:2px;font-family:var(--mono)}
+.cw{position:relative;height:220px}
+.cw-lg{position:relative;height:280px}
+.cw-sm{position:relative;height:180px}
+
+/* ── pipeline health ── */
+.pipeline-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px}
+.pipe-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px 20px}
+.pipe-step{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.pipe-step .num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:13px;flex-shrink:0}
+.pipe-step .num.ok{background:rgba(34,197,94,.15);border:1px solid var(--green);color:var(--green)}
+.pipe-step .num.err{background:rgba(239,68,68,.15);border:1px solid var(--red);color:var(--red)}
+.pipe-step .num.warn{background:rgba(245,158,11,.15);border:1px solid var(--amber);color:var(--amber)}
+.pipe-title{font-size:12.5px;font-weight:600;color:var(--text)}
+.pipe-meta{font-family:var(--mono);font-size:10px;color:var(--text3);line-height:1.8;margin-top:6px}
+.pipe-meta span{color:var(--cyan)}
+.status-ok{color:var(--green);font-family:var(--mono);font-size:11px}
+.status-err{color:var(--red);font-family:var(--mono);font-size:11px}
+
+/* ── QC checks ── */
+.qc-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.qc-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px 20px}
+.qc-card h3{font-size:12.5px;font-weight:600;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.qc-item{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:11.5px}
+.qc-item:last-child{border-bottom:none}
+.qc-item .lbl{color:var(--text2);font-family:var(--mono)}
+.qc-pass{color:var(--green);font-family:var(--mono);font-size:11px;font-weight:600}
+.qc-fail{color:var(--red);font-family:var(--mono);font-size:11px;font-weight:600}
+.qc-na{color:var(--text3);font-family:var(--mono);font-size:11px}
+
+/* ── tables ── */
+.tbl-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px}
+.tbl-hd{padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.tbl-hd h3{font-size:12.5px;font-weight:600;color:var(--text)}
+table{width:100%;border-collapse:collapse}
+thead th{background:var(--bg3);color:var(--text3);font-family:var(--mono);font-size:9.5px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;padding:9px 14px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--border)}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s;cursor:pointer}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--bg3)}
+tbody td{padding:10px 14px;font-size:11.5px;color:var(--text2);white-space:nowrap}
+tbody td strong{color:var(--text)}
+
+/* ── badges ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;font-size:10.5px;font-family:var(--mono);font-weight:500;border:1px solid}
+.badge.ok {background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.3);color:var(--green)}
+.badge.err{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.3);color:var(--red)}
+.badge.warn{background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.3);color:var(--amber)}
+.badge.info{background:rgba(0,212,255,.1);border-color:rgba(0,212,255,.3);color:var(--cyan)}
+.seg-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;font-size:10.5px;font-weight:500;color:#fff}
+.tier-chip{padding:2px 7px;border-radius:3px;font-size:10px;font-family:var(--mono);font-weight:600;color:#fff}
+.risk-bar{display:inline-flex;align-items:center;gap:6px}
+.rb-track{height:4px;width:60px;background:var(--bg3);border-radius:2px;overflow:hidden;display:inline-block;vertical-align:middle}
+.rb-fill{height:100%;border-radius:2px}
+
+/* ── download btn ── */
+.dl-btn{display:inline-flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);color:var(--cyan);padding:7px 14px;border-radius:6px;cursor:pointer;font-family:var(--mono);font-size:11px;transition:all .15s;text-decoration:none;white-space:nowrap}
+.dl-btn:hover{border-color:var(--cyan);background:rgba(0,212,255,.08)}
+.dl-btn.gold{color:var(--amber);border-color:rgba(245,158,11,.4)}
+.dl-btn.gold:hover{background:rgba(245,158,11,.08);border-color:var(--amber)}
+
+/* ── predictions ── */
+.pred-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.pred-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px 20px}
+.pred-card.danger{border-left:3px solid var(--red)}
+.pred-card.warn  {border-left:3px solid var(--amber)}
+.pred-card.good  {border-left:3px solid var(--green)}
+.pred-card.info  {border-left:3px solid var(--cyan)}
+.pred-lbl{font-family:var(--mono);font-size:9.5px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+.pred-val{font-family:var(--display);font-size:32px;line-height:1;margin-bottom:8px}
+.pred-val.red   {color:var(--red)}
+.pred-val.green {color:var(--green)}
+.pred-val.cyan  {color:var(--cyan)}
+.pred-val.amber {color:var(--amber)}
+.pred-desc{font-size:11.5px;color:var(--text3);line-height:1.6;margin-bottom:10px}
+.pred-action{background:var(--bg3);border-radius:6px;border:1px solid var(--border);padding:9px 12px;font-size:11px;color:var(--text2);line-height:1.6;font-family:var(--mono)}
+.pred-action strong{color:var(--cyan)}
+
+/* ── data lineage ── */
+.lineage-table{width:100%}
+.lineage-table th{font-family:var(--mono);font-size:9.5px;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;padding:9px 14px;background:var(--bg3);border-bottom:1px solid var(--border);text-align:left}
+.lineage-table td{padding:10px 14px;font-size:11.5px;border-bottom:1px solid var(--border);vertical-align:top}
+.lineage-table tr:last-child td{border-bottom:none}
+.lineage-table td:first-child{font-family:var(--mono);color:var(--cyan);font-size:11px}
+.lineage-table td:nth-child(2){color:var(--amber);font-family:var(--mono);font-size:11px}
+.col-desc{color:var(--text2);font-size:11.5px}
+.col-note{color:var(--text3);font-size:10.5px;font-family:var(--mono);margin-top:2px}
+
+/* ── seg tabs (kept for other uses) ── */
+.seg-tabs{display:flex;flex-wrap:wrap;gap:6px;padding:14px 18px;border-bottom:1px solid var(--border)}
+.seg-tab{padding:5px 12px;border-radius:4px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;font-family:var(--mono);font-size:11px;transition:all .15s}
+.seg-tab:hover{border-color:var(--cyan);color:var(--cyan)}
+.seg-tab.active{background:rgba(0,212,255,.1);border-color:var(--cyan);color:var(--cyan)}
+
+/* ── segment cards ── */
+.seg-card{
+  background:var(--bg2);border:1px solid var(--border);border-radius:10px;
+  padding:14px 16px;cursor:pointer;transition:all .18s;position:relative;overflow:hidden;
+}
+.seg-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:10px 10px 0 0;opacity:0;transition:opacity .18s}
+.seg-card:hover{border-color:var(--border2);transform:translateY(-1px)}
+.seg-card.active{border-color:var(--cyan);background:rgba(0,212,255,.06)}
+.seg-card.active::before{opacity:1;background:var(--cyan)}
+.seg-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.seg-card-name{font-size:12.5px;font-weight:600;color:var(--text)}
+.seg-card-emoji{font-size:18px}
+.seg-card-count{font-family:var(--display);font-size:18px;color:var(--cyan);line-height:1}
+.seg-card-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-top:2px}
+.seg-card-bar{height:3px;background:var(--bg3);border-radius:2px;margin-top:10px;overflow:hidden}
+.seg-card-bar-fill{height:100%;border-radius:2px;transition:width .5s ease}
+
+/* ── count buttons ── */
+.cnt-btn{
+  padding:5px 12px;border-radius:4px;border:1px solid var(--border);
+  background:var(--bg3);color:var(--text2);cursor:pointer;
+  font-family:var(--mono);font-size:11px;transition:all .15s;
+}
+.cnt-btn:hover{border-color:var(--amber);color:var(--amber)}
+.cnt-btn.active{background:rgba(245,158,11,.15);border-color:var(--amber);color:var(--amber);font-weight:600}
+
+/* ── popup ── */
+.pop-section{margin-bottom:18px}
+.pop-section-title{font-family:var(--mono);font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.pop-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pop-field{background:var(--bg3);border-radius:6px;padding:10px 12px}
+.pop-field-lbl{font-family:var(--mono);font-size:9.5px;color:var(--text3);margin-bottom:3px}
+.pop-field-val{font-size:12.5px;color:var(--text);font-weight:500}
+.pop-field-val.cyan{color:var(--cyan)}
+.pop-field-val.green{color:var(--green)}
+.pop-field-val.red{color:var(--red)}
+.pop-field-val.amber{color:var(--amber)}
+
+/* ── spinner ── */
+.spin{width:24px;height:24px;border:2px solid var(--border);border-top-color:var(--cyan);border-radius:50%;animation:spin .6s linear infinite;margin:32px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── lineage color key ── */
+.lk{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid}
+.lk.rfm  {background:rgba(0,212,255,.08);border-color:rgba(0,212,255,.25);color:var(--cyan)}
+.lk.churn{background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.25);color:var(--red)}
+.lk.browse{background:rgba(168,85,247,.08);border-color:rgba(168,85,247,.25);color:var(--purple)}
+.lk.base {background:rgba(139,148,158,.08);border-color:rgba(139,148,158,.25);color:var(--text2)}
+
+/* ── action cards ── */
+.action-stack{display:flex;flex-direction:column;gap:12px}
+.action-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px 20px;display:grid;grid-template-columns:40px 1fr auto;align-items:center;gap:16px;transition:border-color .15s}
+.action-card:hover{border-color:var(--border2)}
+.action-num{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:16px;border:2px solid;flex-shrink:0}
+.action-body h4{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px}
+.action-body .desc{font-size:11.5px;color:var(--text2);line-height:1.5}
+.action-body .tip{font-family:var(--mono);font-size:10.5px;color:var(--cyan);margin-top:5px}
+.action-right{text-align:right;flex-shrink:0}
+.action-cnt{font-family:var(--display);font-size:20px;color:var(--cyan)}
+.action-lbl{font-family:var(--mono);font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+
+/* -- CLTV Matrix Page -- */
+#page-matrix {
+  --bg:var(--bg2);--surface:var(--bg3);--surface2:#1e2432;
+  --border:rgba(255,255,255,0.07);--text:#e8eaf0;--muted:#5a6480;--accent:var(--cyan);
+  --urgent:#ff3b55;--critical:#ff7142;--monitor:#f5c842;--low:#5a7fa8;--protect:#3ddc84;
+  --platinum:#60c8ff;--gold:#f5c842;--silver:#9baabf;--bronze:#c97b4b;--dormant:#4a4f62;
+}
+#page-matrix * { box-sizing: border-box; margin: 0; padding: 0; }
+#page-matrix body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    padding: 40px 32px;
+    overflow-x: hidden;
+  }
+#page-matrix body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(74,240,196,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(74,240,196,0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+#page-matrix .wrapper { position: relative; z-index: 1; max-width: 1320px; margin: 0 auto; }
+#page-matrix header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 48px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+#page-matrix .brand {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+#page-matrix h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(24px, 3.5vw, 40px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: #fff;
+    margin-top: 6px;
+  }
+#page-matrix h1 span { color: var(--accent); }
+#page-matrix .header-meta {
+    text-align: right;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+#page-matrix .total-badge {
+    display: inline-block;
+    background: rgba(74,240,196,0.1);
+    border: 1px solid rgba(74,240,196,0.25);
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: 2px;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+#page-matrix .legend-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+  }
+#page-matrix .legend-pill {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 6px 14px;
+    border-radius: 2px;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    font-weight: 500;
+  }
+#page-matrix .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+#page-matrix .matrix-wrap {
+    display: flex;
+    gap: 0;
+  }
+#page-matrix .y-axis {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    flex-shrink: 0;
+    position: relative;
+  }
+#page-matrix .y-label {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text);
+    transform: rotate(-90deg);
+    white-space: nowrap;
+  }
+#page-matrix .y-ticks {
+    position: absolute;
+    right: 0;
+    top: 0; bottom: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 0 6px 0 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    text-align: right;
+  }
+#page-matrix .matrix-right { flex: 1; }
+#page-matrix .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 6px;
+    grid-template-rows: repeat(4, minmax(160px, 1fr));
+  }
+#page-matrix .x-axis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-top: 8px;
+  }
+#page-matrix .x-tick {
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.04em;
+  }
+#page-matrix .x-label {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text);
+    margin-top: 16px;
+  }
+#page-matrix .cell {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 14px 16px 12px;
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 160px;
+  }
+#page-matrix .cell::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+#page-matrix .cell:hover {
+    transform: translateY(-2px) scale(1.015);
+    z-index: 10;
+  }
+#page-matrix .cell:hover::before { opacity: 1; }
+#page-matrix .cell::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: 4px 4px 0 0;
+  }
+#page-matrix .p-urgent {
+    background: linear-gradient(135deg, #1a0a0e 0%, #130810 100%);
+    border-color: rgba(255,59,85,0.3);
+  }
+#page-matrix .p-urgent::after { background: var(--urgent); }
+#page-matrix .p-urgent::before { background: radial-gradient(ellipse at top left, rgba(255,59,85,0.08) 0%, transparent 60%); }
+#page-matrix .p-urgent:hover { border-color: rgba(255,59,85,0.7); box-shadow: 0 8px 32px rgba(255,59,85,0.2); }
+#page-matrix .p-critical {
+    background: linear-gradient(135deg, #160d08 0%, #130c08 100%);
+    border-color: rgba(255,113,66,0.3);
+  }
+#page-matrix .p-critical::after { background: var(--critical); }
+#page-matrix .p-critical::before { background: radial-gradient(ellipse at top left, rgba(255,113,66,0.08) 0%, transparent 60%); }
+#page-matrix .p-critical:hover { border-color: rgba(255,113,66,0.7); box-shadow: 0 8px 32px rgba(255,113,66,0.2); }
+#page-matrix .p-monitor {
+    background: linear-gradient(135deg, #131009 0%, #110f08 100%);
+    border-color: rgba(245,200,66,0.2);
+  }
+#page-matrix .p-monitor::after { background: var(--monitor); }
+#page-matrix .p-monitor::before { background: radial-gradient(ellipse at top left, rgba(245,200,66,0.06) 0%, transparent 60%); }
+#page-matrix .p-monitor:hover { border-color: rgba(245,200,66,0.5); box-shadow: 0 8px 32px rgba(245,200,66,0.15); }
+#page-matrix .p-low {
+    background: var(--surface);
+    border-color: rgba(90,127,168,0.2);
+  }
+#page-matrix .p-low::after { background: var(--low); }
+#page-matrix .p-low:hover { border-color: rgba(90,127,168,0.45); box-shadow: 0 8px 24px rgba(90,127,168,0.1); }
+#page-matrix .p-protect {
+    background: linear-gradient(135deg, #07120d 0%, #081210 100%);
+    border-color: rgba(61,220,132,0.25);
+  }
+#page-matrix .p-protect::after { background: var(--protect); }
+#page-matrix .p-protect::before { background: radial-gradient(ellipse at bottom right, rgba(61,220,132,0.07) 0%, transparent 60%); }
+#page-matrix .p-protect:hover { border-color: rgba(61,220,132,0.55); box-shadow: 0 8px 32px rgba(61,220,132,0.15); }
+#page-matrix .cell-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 6px;
+  }
+#page-matrix .priority-badge {
+    font-family: 'Syne', sans-serif;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+#page-matrix .b-urgent { background: rgba(255,59,85,0.2);  color: #ff6b7a; border: 1px solid rgba(255,59,85,0.4); }
+#page-matrix .b-critical { background: rgba(255,113,66,0.2); color: #ff9070; border: 1px solid rgba(255,113,66,0.4); }
+#page-matrix .b-monitor { background: rgba(245,200,66,0.15); color: #f5d060; border: 1px solid rgba(245,200,66,0.35); }
+#page-matrix .b-low { background: rgba(90,127,168,0.15); color: #7a9ec0; border: 1px solid rgba(90,127,168,0.3); }
+#page-matrix .b-protect { background: rgba(61,220,132,0.12); color: #5de8a0; border: 1px solid rgba(61,220,132,0.3); }
+#page-matrix .segment-dots {
+    display: flex;
+    gap: 3px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 60px;
+  }
+#page-matrix .sdot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+#page-matrix .count {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(26px, 2.8vw, 42px);
+    font-weight: 800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: #fff;
+  }
+#page-matrix .count-label {
+    font-size: 8px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: -4px;
+  }
+#page-matrix .action-text {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+    border-top: 1px solid var(--border);
+    padding-top: 8px;
+    margin-top: 4px;
+  }
+#page-matrix .segments-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: 4px;
+  }
+#page-matrix .seg-tag {
+    font-size: 7.5px;
+    padding: 1px 5px;
+    border-radius: 2px;
+    letter-spacing: 0.04em;
+    opacity: 0.85;
+  }
+#page-matrix .seg-platinum { background: rgba(96,200,255,0.12); color: var(--platinum); }
+#page-matrix .seg-gold { background: rgba(245,200,66,0.12);  color: var(--gold); }
+#page-matrix .seg-silver { background: rgba(155,170,191,0.12); color: var(--silver); }
+#page-matrix .seg-bronze { background: rgba(201,123,75,0.12);  color: var(--bronze); }
+#page-matrix .seg-dormant { background: rgba(74,79,98,0.2);     color: var(--dormant); filter: brightness(1.6); }
+#page-matrix .quadrant-label {
+    position: absolute;
+    bottom: 10px; right: 12px;
+    font-size: 8px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.22;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+  }
+#page-matrix .tooltip {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    background: #141824;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px;
+    padding: 18px 20px;
+    min-width: 280px;
+    pointer-events: none;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+  }
+#page-matrix .tooltip.visible { display: block; }
+#page-matrix .tt-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+  }
+#page-matrix .tt-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #8b94b0;
+    margin-bottom: 7px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+#page-matrix .tt-row span:last-child { color: #e8eaf0; font-weight: 600; }
+#page-matrix .tt-row span:last-child { color: var(--text); }
+#page-matrix .stats-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    margin-top: 32px;
+  }
+#page-matrix .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 18px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+#page-matrix .stat-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+#page-matrix .sc-urgent::after { background: var(--urgent); }
+#page-matrix .sc-critical::after { background: var(--critical); }
+#page-matrix .sc-monitor::after { background: var(--monitor); }
+#page-matrix .sc-low::after { background: var(--low); }
+#page-matrix .sc-protect::after { background: var(--protect); }
+#page-matrix .stat-label {
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+#page-matrix .stat-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.03em;
+  }
+#page-matrix .stat-sub {
+    font-size: 9px;
+    color: var(--muted);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+@media (max-width: 900px) {
+#page-matrix .stats-row { grid-template-columns: repeat(3, 1fr); }
+#page-matrix .grid { aspect-ratio: auto; }
+}
+@media (max-width: 600px) {
+#page-matrix .stats-row { grid-template-columns: repeat(2, 1fr); }
+#page-matrix body { padding: 24px 16px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══ SIDEBAR ═══════════════════════════════════════════ -->
+<nav class="sidebar">
+  <div class="sb-logo">
+    <h1>LP DataPlatform</h1>
+    <p>Internal Operations</p>
+    <span class="ver">v3.8 • internal</span>
+  </div>
+
+  <div class="sb-grp">
+    <div class="sb-grp-lbl">Overview</div>
+    <div class="sb-item active" data-page="overview"   onclick="nav(this)"><span class="ic">⬡</span> Dashboard</div>
+    <div class="sb-item"        data-page="pipeline"   onclick="nav(this)"><span class="ic">⚙</span> Pipeline Health</div>
+    <div class="sb-item"        data-page="qc"         onclick="nav(this)"><span class="ic">✓</span> QC Status</div>
+  </div>
+  <div class="sb-grp">
+    <div class="sb-grp-lbl">Analytics</div>
+    <div class="sb-item" data-page="segments"    onclick="nav(this)"><span class="ic">◈</span> Segments</div>
+    <div class="sb-item" data-page="matrix"      onclick="nav(this)"><span class="ic">&#9638;</span> Risk Matrix</div>
+    <div class="sb-item" data-page="predictions" onclick="nav(this)"><span class="ic">◉</span> Predictions</div>
+    <div class="sb-item" data-page="top"         onclick="nav(this)"><span class="ic">▲</span> Top Customers</div>
+  </div>
+  <div class="sb-grp">
+    <div class="sb-grp-lbl">Engineering</div>
+    <div class="sb-item" data-page="lineage" onclick="nav(this)"><span class="ic">⊞</span> Data Lineage</div>
+    <div class="sb-item" data-page="samples" onclick="nav(this)"><span class="ic">↓</span> Records + Download</div>
+  </div>
+
+  <div class="sb-footer">
+    <button class="sb-btn" onclick="loadAll()">↻ Refresh All Data</button>
+    <div class="sb-ts" id="sbTs">Connecting…</div>
+  </div>
+</nav>
+
+<!-- ══ MAIN ══════════════════════════════════════════════ -->
+<main class="main">
+
+<!-- ── PAGE: OVERVIEW ─────────────────────────────────── -->
+<div class="page active" id="page-overview">
+  <div class="topbar">
+    <div class="tb-left"><h2>Customer Intelligence</h2><p>KIRAN.TBL_CUSTOMER_PROFILE • live redshift • <span id="ts0">—</span></p></div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 12px">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">ACTIVE WITHIN</span>
+        <select id="yearFilter" size="1" onchange="applyYearFilter()" style="background:var(--bg3);border:1px solid var(--border2);color:var(--cyan);font-family:var(--mono);font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;cursor:pointer;outline:none;min-width:180px">
+          <option value="0" selected>All time (15.3M)</option>
+          <option value="1">1 Year (~1.5M active)</option>
+          <option value="3">3 Years (~3.1M active)</option>
+          <option value="6">6 Years (~5.5M active)</option>
+          <option value="10">10 Years (~6.9M active)</option>
+          <option value="15">10+ Years (~7.1M active)</option>
+        </select>
+        <span id="filterBadge" style="display:none;background:rgba(0,212,255,.15);border:1px solid var(--cyan);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:9px;color:var(--cyan)">FILTERED</span>
+      </div>
+      <div class="live-chip"><div class="dot-green"></div><span id="liveTs">loading…</span></div>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi cy"><div class="kpi-ico">👥</div><div class="kpi-lbl">total_customers</div><div class="kpi-val" id="k0">—</div><div class="kpi-sub">all rows in TBL_CUSTOMER_PROFILE</div></div>
+    <div class="kpi am"><div class="kpi-ico">💰</div><div class="kpi-lbl">total_portfolio_value</div><div class="kpi-val" id="k1">—</div><div class="kpi-sub">SUM(cltv_adjusted_v2)</div></div>
+    <div class="kpi rd"><div class="kpi-ico">⚠</div><div class="kpi-lbl">revenue_at_risk</div><div class="kpi-val" id="k2">—</div><div class="kpi-sub">Platinum+Gold × high_churn</div></div>
+    <div class="kpi gn"><div class="kpi-ico">🛍</div><div class="kpi-lbl">buyers</div><div class="kpi-val" id="k3">—</div><div class="kpi-sub">WHERE total_orders > 0</div></div>
+    <div class="kpi am"><div class="kpi-ico">🔥</div><div class="kpi-lbl">hot_leads</div><div class="kpi-val" id="k4">—</div><div class="kpi-sub">engagement_multiplier = 1.3</div></div>
+    <div class="kpi rd"><div class="kpi-ico">🛒</div><div class="kpi-lbl">cart_abandoners</div><div class="kpi-val" id="k5">—</div><div class="kpi-sub">rfm_segment_v2 = 'Cart Abandoner'</div></div>
+    <div class="kpi pu"><div class="kpi-ico">🔄</div><div class="kpi-lbl">re_engaged</div><div class="kpi-val" id="k6">—</div><div class="kpi-sub">rfm_segment_v2 = 'Re-Engaged'</div></div>
+    <div class="kpi bl"><div class="kpi-ico">🚨</div><div class="kpi-lbl">urgent_winback</div><div class="kpi-val" id="k7">—</div><div class="kpi-sub">Plat/Gold AND churn_segment='High Risk'</div></div>
+  </div>
+
+  <div class="grid2">
+    <div class="cc"><div class="cc-hd"><div class="cc-title">rfm_segment_v2 Distribution</div><div class="cc-sub">COUNT(*) per segment</div></div><div class="cw"><canvas id="cSegPie"></canvas></div></div>
+    <div class="cc"><div class="cc-hd"><div class="cc-title">AVG(cltv_adjusted_v2) by Segment ($)</div><div class="cc-sub">sorted descending — buyers only</div></div><div class="cw"><canvas id="cSegVal"></canvas></div></div>
+  </div>
+  <div class="grid2">
+    <div class="cc"><div class="cc-hd"><div class="cc-title">churn_segment Distribution</div><div class="cc-sub">COUNT(*) by churn_segment</div></div><div class="cw"><canvas id="cChurnPie"></canvas></div></div>
+    <div class="cc" style="display:flex;flex-direction:column">
+      <div class="cc-hd"><div class="cc-title">CLTV vs Churn Risk — by Segment</div>
+      <div class="cc-sub">4-quadrant: median churn · median CLTV · bubble = customer count · hover for label</div></div>
+      <div class="cw" style="flex:1;min-height:260px"><canvas id="cScatter"></canvas></div>
+    </div>
+  </div>
+
+  <div class="tbl-card" style="margin-bottom:16px">
+    <div style="background:var(--bg3);border-bottom:1px solid var(--border);padding:12px 18px;border-radius:10px 10px 0 0;display:flex;align-items:center;justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:10px"><span style="font-size:13px;font-weight:600;color:var(--text)">📊 CLTV vs Churn Risk — Detailed Segment Analysis</span><span style="font-family:var(--mono);font-size:10px;color:var(--text3)" id="matrixFilterLabel"></span></div>
+      <button onclick="exportMatrix()" style="background:var(--bg4);border:1px solid var(--border2);color:var(--cyan);font-family:var(--mono);font-size:10px;padding:5px 12px;border-radius:6px;cursor:pointer">⬇ Export CSV</button>
+    </div>
+    <div style="overflow-x:auto"><table class="dt" id="matrixTbl"><thead><tr><th>SEGMENT</th><th>CUSTOMER COUNT</th><th>AVG CLTV</th><th>TOTAL CLTV VALUE</th><th>CHURN RISK</th><th>REVENUE AT RISK</th><th>PRIORITY</th><th>ACTION REQUIRED</th><th>EXPORT</th></tr></thead><tbody id="matrixBody"><tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3);font-family:var(--mono);font-size:11px">loading…</td></tr></tbody></table></div>
+  </div>
+
+  <div class="tbl-card" style="margin-bottom:16px">
+    <div style="background:var(--bg3);border-bottom:1px solid var(--border);padding:12px 18px;border-radius:10px 10px 0 0"><span style="font-size:13px;font-weight:600;color:var(--text)">📊 Cross-Metric Performance</span><span style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-left:10px">avg_cltv · churn_prob · browse_score · email_rate · eng_multiplier</span></div>
+    <div style="overflow-x:auto"><table class="dt" id="crossTbl"><thead><tr><th>Segment</th><th>Customers</th><th>Avg CLTV ($)</th><th>Churn Prob</th><th>High Risk %</th><th>Browse Score</th><th>Email Rate</th><th>Eng. Mult.</th><th>Avg Spend ($)</th></tr></thead><tbody id="crossBody"><tr><td colspan="9" style="text-align:center;padding:22px;color:var(--text3);font-family:var(--mono);font-size:11px">loading…</td></tr></tbody></table></div>
+  </div>
+  <div class="grid2">
+    <div class="cc"><div class="cc-hd"><div class="cc-title">cltv_segment Breakdown (customers + avg CLTV)</div><div class="cc-sub">dual axis: bars = count, line = AVG(cltv_adjusted_v2)</div></div><div class="cw"><canvas id="cCltv"></canvas></div></div>
+    <div class="cc"><div class="cc-hd"><div class="cc-title">churn_browse_signal Distribution</div><div class="cc-sub">online engagement recency buckets</div></div><div class="cw"><canvas id="cEng"></canvas></div></div>
+  </div>
+</div>
+
+<!-- ── PAGE: PIPELINE HEALTH ──────────────────────────── -->
+<div class="page" id="page-pipeline">
+  <div class="topbar">
+    <div class="tb-left"><h2>Pipeline Health</h2><p>Step 1 → Step 2 → Step 3 run status, row counts, and data health</p></div>
+  </div>
+
+  <div class="pipeline-row" id="pipeRow">
+    <div class="spin" style="grid-column:1/-1"></div>
+  </div>
+
+  <div class="grid2">
+    <div class="cc"><div class="cc-hd"><div class="cc-title">Column Null Health</div><div class="cc-sub">NULL count per key column — should be 0 for all</div></div><div class="cw"><canvas id="cNullBar"></canvas></div></div>
+    <div class="cc"><div class="cc-hd"><div class="cc-title">Engagement Multiplier Distribution</div><div class="cc-sub">engagement_multiplier value breakdown</div></div><div class="cw"><canvas id="cMult"></canvas></div></div>
+  </div>
+</div>
+
+<!-- ── PAGE: QC STATUS ─────────────────────────────────── -->
+<div class="page" id="page-qc">
+  <div class="topbar">
+    <div class="tb-left"><h2>QC Status</h2><p>Data quality checks across all 3 scoring models — <span id="qcScore">—</span> checks total</p></div>
+  </div>
+  <div class="qc-grid" id="qcGrid"><div class="spin"></div></div>
+</div>
+
+<!-- ── PAGE: SEGMENTS ─────────────────────────────────── -->
+<div class="page" id="page-segments">
+  <div class="topbar">
+    <div class="tb-left"><h2>Segment Analysis</h2><p>All rfm_segment_v2 values with full metric breakdown</p></div>
+  </div>
+  <div class="tbl-card">
+    <div class="tbl-hd"><h3>All Segments — click row to jump to sample records</h3></div>
+    <div style="overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>rfm_segment_v2</th><th>customers</th><th>pct</th>
+        <th>avg_cltv_v2 ($)</th><th>total_value ($)</th><th>avg_monetary ($)</th>
+        <th>avg_rfm_score</th><th>avg_churn_prob</th><th>high_risk_count</th>
+        <th>avg_email_eng</th><th>avg_browse_conv</th><th>cart_buyers</th>
+        <th>priority_action</th>
+      </tr></thead>
+      <tbody id="segBody"></tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── PAGE: PREDICTIONS ──────────────────────────────── -->
+<div class="page" id="page-predictions">
+  <div class="topbar">
+    <div class="tb-left"><h2>Revenue Predictions</h2><p>Scenario modelling based on live segment data and conversion assumptions</p></div>
+  </div>
+  <div class="cc full" style="margin-bottom:16px">
+    <div class="cc-hd"><div class="cc-title">Scenario Revenue Overview</div><div class="cc-sub">Predicted values across 8 campaign scenarios — hover for formula</div></div>
+    <div class="cw-lg"><canvas id="cPredBar"></canvas></div>
+  </div>
+  <div class="pred-grid" id="predGrid"><div class="spin"></div></div>
+</div>
+
+<!-- ── PAGE: TOP CUSTOMERS ────────────────────────────── -->
+<div class="page" id="page-top">
+  <div class="topbar">
+    <div class="tb-left"><h2>Top 20 Customers</h2><p>ORDER BY cltv_adjusted_v2 DESC LIMIT 20 — full profile per customer</p></div>
+    <a href="/api/download/Champions" class="dl-btn gold">⬇ Download Top 100</a>
+  </div>
+  <div class="tbl-card">
+    <div style="overflow-x:auto">
+    <table id="topTable">
+      <thead><tr>
+        <th>master_customer_id</th><th>rfm_segment_v2</th><th>cltv_segment</th>
+        <th>cltv_adjusted_v2 ($)</th><th>cltv_adjusted ($)</th><th>monetary ($)</th>
+        <th>frequency</th><th>recency</th><th>churn_segment</th>
+        <th>churn_prob</th><th>browse_signal</th><th>eng_mult</th>
+        <th>cart_flag</th><th>returner</th><th>cancel_rate</th>
+        <th>last_active</th><th>model_ver</th>
+      </tr></thead>
+      <tbody id="topBody"></tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── PAGE: DATA LINEAGE ─────────────────────────────── -->
+<div class="page" id="page-lineage">
+  <div class="topbar">
+    <div class="tb-left"><h2>Data Lineage</h2><p>Every column in TBL_CUSTOMER_PROFILE — source script, update mechanism, business meaning</p></div>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+    <span class="lk rfm">● rfm_cltv_tbl_customer_profile.py</span>
+    <span class="lk churn">● churn_model_tbl_customer_profile.py</span>
+    <span class="lk browse">● browse_email_enrichment_tbl_customer_profile.py</span>
+    <span class="lk base">● Base table (pre-existing)</span>
+  </div>
+
+  <div class="cc">
+    <table class="lineage-table">
+      <thead><tr><th>column_name</th><th>source_script</th><th>update_type</th><th>description</th></tr></thead>
+      <tbody id="lineageBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── PAGE: RECORDS + DOWNLOAD ───────────────────────── -->
+<div class="page" id="page-samples">
+  <div class="topbar">
+    <div class="tb-left"><h2>Sample Records + Download</h2><p>Select segment → preview 10 rows → download with PII (50/100/250/500)</p></div>
+  </div>
+
+  <!-- Segment cards grid -->
+  <div id="segCardGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px"></div>
+
+  <!-- Download panel — always visible once segment selected -->
+  <div id="dlPanel" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <span style="font-family:var(--mono);font-size:11px;color:var(--text2)">Download segment:</span>
+        <span id="dlSegLabel" style="font-size:13px;font-weight:600;color:var(--cyan)">—</span>
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">records:</span>
+        <div style="display:flex;gap:6px" id="cntBtns">
+          <button class="cnt-btn active" data-n="50"  onclick="setCnt(this)">50</button>
+          <button class="cnt-btn"        data-n="100" onclick="setCnt(this)">100</button>
+          <button class="cnt-btn"        data-n="250" onclick="setCnt(this)">250</button>
+          <button class="cnt-btn"        data-n="500" onclick="setCnt(this)">500</button>
+        </div>
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">includes PII:</span>
+        <span style="font-family:var(--mono);font-size:10px;color:var(--green)">email · phone · name · address</span>
+      </div>
+      <button class="dl-btn gold" onclick="doDownload()" style="flex-shrink:0">
+        ⬇ &nbsp;Download CSV
+      </button>
+    </div>
+  </div>
+
+  <!-- Preview table -->
+  <div class="tbl-card" id="sampCard" style="display:flex;flex-direction:column;height:calc(100vh - 370px);min-height:240px">
+    <div style="background:var(--bg3);border-bottom:1px solid var(--border);padding:10px 18px;border-radius:10px 10px 0 0;display:flex;align-items:center;gap:10px;flex-shrink:0">
+      <span style="font-size:13px;font-weight:600;color:var(--text)" id="sampTitle">Select a segment above</span>
+      <span style="font-family:var(--mono);font-size:10px;color:var(--text3)" id="sampSub"></span>
+    </div>
+    <div style="overflow:auto;flex:1" id="sampBody">
+      <p style="padding:28px;text-align:center;color:var(--text3);font-family:var(--mono);font-size:11px">// click a segment card above to preview records</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── CUSTOMER DETAIL POPUP ───────────────────────────── -->
+<div id="popOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center">
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;width:680px;max-width:95vw;max-height:85vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.6)">
+    <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg2);z-index:1">
+      <div>
+        <div style="font-size:14px;font-weight:600;color:var(--text)" id="popTitle">Customer Profile</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:2px" id="popId">—</div>
+      </div>
+      <button onclick="closePopup()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center">✕</button>
+    </div>
+    <div id="popBody" style="padding:20px 22px"></div>
+  </div>
+</div>
+
+
+
+<div class="page" id="page-matrix">
+  <div style="padding:0 0 18px;display:flex;align-items:baseline;gap:12px">
+    <div style="font-size:17px;font-weight:700;color:var(--text)">CLTV vs Churn Risk Matrix</div>
+    <div style="font-family:var(--mono);font-size:10px;color:var(--text3)">segment priority grid · revenue at risk · action zones</div>
+  </div>
+<!-- LEGEND -->
+  <div class="legend-row">
+    <div class="legend-pill"><span class="legend-dot" style="background:var(--urgent)"></span>Urgent</div>
+    <div class="legend-pill"><span class="legend-dot" style="background:var(--critical)"></span>Critical</div>
+    <div class="legend-pill"><span class="legend-dot" style="background:var(--monitor)"></span>Monitor</div>
+    <div class="legend-pill"><span class="legend-dot" style="background:var(--low)"></span>Low</div>
+    <div class="legend-pill"><span class="legend-dot" style="background:var(--protect)"></span>Protect</div>
+    <div class="legend-pill" style="margin-left:auto"><span class="legend-dot" style="background:var(--platinum)"></span>Platinum</div>
+    <div class="legend-pill"><span class="legend-dot" style="background:var(--gold)"></span>Gold</div>
+    <div class="legend-pill"><span class="legend-dot" style="background:var(--silver)"></span>Silver</div>
+    <div class="legend-pill"><span class="legend-dot" style="background:var(--bronze)"></span>Bronze</div>
+    <div class="legend-pill"><span class="legend-dot" style="background:var(--dormant)"></span>Dormant</div>
+  </div>
+
+  <!-- MATRIX -->
+  <div class="matrix-wrap">
+    <!-- Y axis -->
+    <div class="y-axis">
+      <div class="y-ticks">
+        <span>$5K+</span>
+        <span>$2.5K</span>
+        <span>$1K</span>
+        <span>$0</span>
+      </div>
+      <span class="y-label" style="position:absolute;left:-4px">CLTV Value →</span>
+    </div>
+
+    <div class="matrix-right">
+      <div class="grid" id="matrix"></div>
+
+      <div class="x-axis">
+        <div class="x-tick">0–25%</div>
+        <div class="x-tick">25–50%</div>
+        <div class="x-tick">50–75%</div>
+        <div class="x-tick">75–100%</div>
+      </div>
+      <div class="x-label">Churn Risk →</div>
+    </div>
+  </div>
+
+  <!-- SUMMARY STATS -->
+  <div class="stats-row" id="stats"></div>
+
+</div>
+
+<!-- TOOLTIP -->
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// ─────────────────────────────────────────────
+//  MATRIX DATA
+//  Row 0 = highest CLTV ($5K+), Row 3 = lowest ($0-$1K)
+//  Col 0 = lowest churn (0-25%), Col 3 = highest churn (75-100%)
+// ─────────────────────────────────────────────
+const CLTV_BANDS = ['$5,000+', '$2,500–$5,000', '$1,000–$2,500', '$0–$1,000'];
+const CHURN_BANDS = ['0–25%', '25–50%', '50–75%', '75–100%'];
+
+const cells = [
+  // Row 0 — Highest CLTV ($5K+)
+  {
+    priority: 'protect', action: 'Maintain excellence',
+    segments: [
+      {name:'Platinum + Healthy', tier:'platinum'}, {name:'Gold + Healthy', tier:'gold'}
+    ],
+    count: 48321, pct: '1.7%',
+    note: 'Best customers — zero churn risk, maximum lifetime value'
+  },
+  {
+    priority: 'protect', action: 'Loyalty rewards',
+    segments: [
+      {name:'Platinum + Low Risk', tier:'platinum'}, {name:'Gold + Low Risk', tier:'gold'}
+    ],
+    count: 61204, pct: '2.1%',
+    note: 'Near-perfect — reward and engage proactively'
+  },
+  {
+    priority: 'critical', action: 'VIP retention programs',
+    segments: [
+      {name:'Platinum + Medium Risk', tier:'platinum'}, {name:'Gold + Medium Risk', tier:'gold'}
+    ],
+    count: 34118, pct: '1.2%',
+    note: 'High value at risk — escalate to VIP retention'
+  },
+  {
+    priority: 'urgent', action: 'Immediate executive intervention',
+    segments: [
+      {name:'Platinum + High Risk', tier:'platinum'}, {name:'Gold + High Risk', tier:'gold'}
+    ],
+    count: 12943, pct: '0.5%',
+    note: '🔴 Critical loss scenario — highest revenue exposure'
+  },
+
+  // Row 1 — CLTV $2.5K–$5K
+  {
+    priority: 'protect', action: 'Maintain excellence',
+    segments: [
+      {name:'Silver + Healthy', tier:'silver'}
+    ],
+    count: 87644, pct: '3.1%',
+    note: 'Stable mid-tier — maintain touchpoints'
+  },
+  {
+    priority: 'low', action: 'Automated nurture',
+    segments: [
+      {name:'Silver + Low Risk', tier:'silver'}
+    ],
+    count: 142380, pct: '5.0%',
+    note: 'Healthy mid-segment — standard automation'
+  },
+  {
+    priority: 'monitor', action: 'Engagement campaigns',
+    segments: [
+      {name:'Silver + Medium Risk', tier:'silver'}
+    ],
+    count: 98750, pct: '3.5%',
+    note: 'Watch closely — trigger re-engagement flows'
+  },
+  {
+    priority: 'urgent', action: 'Win-back campaigns',
+    segments: [
+      {name:'Silver + High Risk', tier:'silver'}
+    ],
+    count: 52180, pct: '1.8%',
+    note: '🔴 Significant revenue at risk — deploy win-back urgently'
+  },
+
+  // Row 2 — CLTV $1K–$2.5K
+  {
+    priority: 'low', action: 'Standard nurture',
+    segments: [
+      {name:'Bronze + Healthy', tier:'bronze'}
+    ],
+    count: 203490, pct: '7.1%',
+    note: 'Growing segment — standard lifecycle marketing'
+  },
+  {
+    priority: 'low', action: 'Automated nurture',
+    segments: [
+      {name:'Bronze + Low Risk', tier:'bronze'}
+    ],
+    count: 318760, pct: '11.2%',
+    note: 'Largest stable segment — scale via automation'
+  },
+  {
+    priority: 'monitor', action: 'Engagement campaigns',
+    segments: [
+      {name:'Bronze + Medium Risk', tier:'bronze'}
+    ],
+    count: 224150, pct: '7.9%',
+    note: 'Mid-risk mid-value — targeted engagement needed'
+  },
+  {
+    priority: 'critical', action: 'Targeted retention offers',
+    segments: [
+      {name:'Bronze + High Risk', tier:'bronze'}
+    ],
+    count: 118930, pct: '4.2%',
+    note: 'Volume at risk — offer-driven retention campaigns'
+  },
+
+  // Row 3 — Lowest CLTV ($0–$1K)
+  {
+    priority: 'low', action: 'Automated nurture',
+    segments: [
+      {name:'Dormant + Healthy', tier:'dormant'}
+    ],
+    count: 412040, pct: '14.5%',
+    note: 'Dormant but stable — low-touch automation'
+  },
+  null,
+  {
+    priority: 'monitor', action: 'Low-cost reactivation',
+    segments: [
+      {name:'Dormant + Medium Risk', tier:'dormant'}
+    ],
+    count: 298640, pct: '10.5%',
+    note: 'Large disengaged pool — budget reactivation campaigns'
+  },
+  {
+    priority: 'low', action: 'Automated nurture',
+    segments: [
+      {name:'Dormant + High Risk', tier:'dormant'}
+    ],
+    count: 151622, pct: '5.3%',
+    note: 'Likely churned low-value — suppress or reactivate cheaply'
+  },
+];
+
+// Priority configs
+const PCONF = {
+  urgent:   { cls: 'p-urgent',   badge: 'b-urgent',   label: 'URGENT',   color: '#ff3b55' },
+  critical: { cls: 'p-critical', badge: 'b-critical', label: 'Critical', color: '#ff7142' },
+  monitor:  { cls: 'p-monitor',  badge: 'b-monitor',  label: 'Monitor',  color: '#f5c842' },
+  low:      { cls: 'p-low',      badge: 'b-low',      label: 'Low',      color: '#5a7fa8' },
+  protect:  { cls: 'p-protect',  badge: 'b-protect',  label: 'Protect',  color: '#3ddc84' },
+};
+
+const TIER_COLOR = {
+  platinum: '#60c8ff',
+  gold:     '#f5c842',
+  silver:   '#9baabf',
+  bronze:   '#c97b4b',
+  dormant:  '#7a8099',
+};
+
+// Build grid
+const grid = document.getElementById('matrix');
+const tooltip = document.getElementById('tooltip');
+
+cells.forEach((cell, i) => {
+  if(cell===null){
+    const el=document.createElement('div');
+    el.className='cell';
+    el.style.cssText='background:transparent;border:1px dashed rgba(255,255,255,.05);pointer-events:none';
+    grid.appendChild(el); return;
+  }
+  const row = Math.floor(i / 4);
+  const col = i % 4;
+  const pc = PCONF[cell.priority];
+
+  const el = document.createElement('div');
+  el.className = `cell ${pc.cls}`;
+
+  const dots = cell.segments.map(s =>
+    `<div class="sdot" style="background:${TIER_COLOR[s.tier]}"></div>`
+  ).join('');
+
+  const tags = cell.segments.map(s =>
+    `<span class="seg-tag seg-${s.tier}">${s.name}</span>`
+  ).join('');
+
+  el.innerHTML = `
+    <div class="cell-top">
+      <span class="priority-badge ${pc.badge}">${pc.label}</span>
+      <div class="segment-dots">${dots}</div>
+    </div>
+    <div class="count">${cell.count.toLocaleString()}</div>
+    <div class="count-label">customers · ${cell.pct}</div>
+    <div class="action-text">${cell.action}</div>
+    <div class="segments-list">${tags}</div>
+  `;
+
+  // Tooltip
+  el.addEventListener('mousemove', e => {
+    tooltip.className = 'tooltip visible';
+    tooltip.innerHTML = `
+      <div class="tt-title">${cell.segments.map(s=>s.name).join(' / ')}</div>
+      <div class="tt-row"><span>Priority</span><span style="color:${pc.color}">${pc.label}</span></div>
+      <div class="tt-row"><span>Action</span><span>${cell.action}</span></div>
+      <div class="tt-row"><span>Customers</span><span>${cell.count.toLocaleString()}</span></div>
+      <div class="tt-row"><span>Share</span><span>${cell.pct}</span></div>
+      <div class="tt-row"><span>CLTV Band</span><span>${CLTV_BANDS[row]}</span></div>
+      <div class="tt-row"><span>Churn Band</span><span>${CHURN_BANDS[col]}</span></div>
+      <div style="margin-top:10px;font-size:10px;color:#7a8099;line-height:1.5">${cell.note}</div>
+    `;
+    const tw = 280, th = 220;
+    let x = e.clientX + 16, y = e.clientY + 16;
+    if (x + tw > window.innerWidth)  x = e.clientX - tw - 8;
+    if (y + th > window.innerHeight) y = e.clientY - th - 8;
+    tooltip.style.left = x + 'px';
+    tooltip.style.top  = y + 'px';
+  });
+
+  el.addEventListener('mouseleave', () => tooltip.className = 'tooltip');
+
+  grid.appendChild(el);
+});
+
+// ─── SUMMARY STATS ───
+const groups = { urgent: [], critical: [], monitor: [], low: [], protect: [] };
+cells.forEach(c => groups[c.priority].push(c.count));
+const sum = arr => arr.reduce((a,b)=>a+b, 0);
+
+const statDefs = [
+  { key: 'urgent',   label: 'Urgent',   action: 'Immediate action', sc: 'sc-urgent',   color: '#ff3b55' },
+  { key: 'critical', label: 'Critical', action: 'VIP retention',    sc: 'sc-critical', color: '#ff7142' },
+  { key: 'monitor',  label: 'Monitor',  action: 'Track & engage',   sc: 'sc-monitor',  color: '#f5c842' },
+  { key: 'low',      label: 'Low',      action: 'Automate nurture', sc: 'sc-low',      color: '#5a7fa8' },
+  { key: 'protect',  label: 'Protect',  action: 'Preserve value',   sc: 'sc-protect',  color: '#3ddc84' },
+];
+
+const statsEl = document.getElementById('stats');
+const total = cells.reduce((a,c)=>a+c.count,0);
+
+statDefs.forEach(d => {
+  const n = sum(groups[d.key]);
+  const pct = ((n/total)*100).toFixed(1);
+  const card = document.createElement('div');
+  card.className = `stat-card ${d.sc}`;
+  card.innerHTML = `
+    <div class="stat-label">${d.label}</div>
+    <div class="stat-num" style="color:${d.color}">${n.toLocaleString()}</div>
+    <div class="stat-sub">${pct}% of base<br>${d.action}</div>
+  `;
+  statsEl.appendChild(card);
+});
+</script>
+</div>
+
+</main>
+
+<!-- ══ JS ════════════════════════════════════════════════ -->
+<script>
+const $=id=>document.getElementById(id);
+const fmt =n=>n==null?'—':Number(n).toLocaleString('en-US');
+const fmtD=n=>n==null?'—':'$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtP=n=>n==null?'—':(Number(n)*100).toFixed(1)+'%';
+function sv(n){
+  if(n==null)return'—';const v=Number(n);
+  if(v>=1e9)return'$'+(v/1e9).toFixed(2)+'B';
+  if(v>=1e6)return'$'+(v/1e6).toFixed(1)+'M';
+  if(v>=1e3)return'$'+(v/1e3).toFixed(0)+'K';
+  return'$'+v.toFixed(0);
+}
+function sn(n){if(n==null)return'—';const v=Number(n);if(v>=1e6)return(v/1e6).toFixed(1)+'M';if(v>=1e3)return(v/1e3).toFixed(0)+'K';return fmt(v);}
+async function api(u){const r=await fetch(u);return r.json();}
+
+// ── nav ──────────────────────────────────────────────────
+function nav(el){
+  document.querySelectorAll('.sb-item').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  const pg=el.dataset.page;
+  $('page-'+pg).classList.add('active');
+  if(pg==='pipeline' && !_pipeLoaded)loadPipeline();
+  if(pg==='qc'       && !_qcLoaded)buildQC();
+  if(pg==='top'      && !_topLoaded)loadTop();
+  if(pg==='lineage'  && !_linLoaded)buildLineage();
+  if(pg==='predictions' && !_predLoaded)loadPred();
+  if(pg==='actions'  && !_actLoaded)buildActions();
+  if(pg==='samples')buildSegCards();
+}
+let _pipeLoaded=false,_qcLoaded=false,_topLoaded=false,_linLoaded=false,_predLoaded=false,_actLoaded=false;
+
+// ── charts ───────────────────────────────────────────────
+const CH={};
+function mkC(id,cfg){if(CH[id])CH[id].destroy();CH[id]=new Chart($(id),cfg);}
+const GRID='rgba(48,54,61,.6)';
+const TF=f=>({color:'#8b949e',font:{size:10,family:'JetBrains Mono'},...f});
+
+// ── load all ─────────────────────────────────────────────
+let _activeYears=0;
+function yrQ(){ return _activeYears>0?'?years='+_activeYears:''; }
+function applyYearFilter(){
+  _activeYears=parseInt($('yearFilter').value)||0;
+  const b=$('filterBadge');
+  if(_activeYears>0){b.style.display='inline';b.textContent=_activeYears+' YR';}
+  else b.style.display='none';
+  loadAll();
+}
+
+let _sum={},_segs=[],_churn=[],_cltv=[],_eng=[];
+
+async function loadAll(){
+  $('sbTs').textContent='refreshing…';
+  try{
+    const q=yrQ();
+    const[sum,segs,churn,cltv,eng]=await Promise.all([
+      api('/api/summary'+q),api('/api/segments'+q),api('/api/churn'+q),
+      api('/api/cltv'+q),api('/api/engagement'+q)
+    ]);
+    _sum=sum;_segs=segs;_churn=churn;_cltv=cltv;_eng=eng;
+    fillKPIs(sum);buildMainCharts(segs,churn,cltv,eng);buildSegTable(segs);buildSegCards();
+    loadMatrix();
+    const ts=sum.last_refresh?new Date(sum.last_refresh).toLocaleString():'—';
+    $('sbTs').textContent='last refresh:\n'+ts;
+    $('liveTs').textContent=ts;$('ts0').textContent=ts;
+  }catch(e){$('sbTs').textContent='error: '+e.message;console.error(e);}
+}
+
+async function loadMatrix(){
+  const q=yrQ();
+  const lbl=$('matrixFilterLabel');
+  if(lbl)lbl.textContent=_activeYears>0?'last '+_activeYears+' years':'';
+  let rows;
+  try{rows=await api('/api/cltv_churn_matrix'+(q||'?'));}
+  catch(e){$('matrixBody').innerHTML='<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--red);font-family:var(--mono)">error</td></tr>';return;}
+  if(!rows||!rows.length){$('matrixBody').innerHTML='<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3);font-family:var(--mono)">no data</td></tr>';return;}
+  const fB=v=>{const n=Number(v)||0;if(n>=1e9)return'$'+(n/1e9).toFixed(2)+'B';if(n>=1e6)return'$'+(n/1e6).toFixed(1)+'M';if(n>=1e3)return'$'+(n/1e3).toFixed(0)+'K';return'$'+n.toFixed(0);};
+  const bg=p=>p>=70?'rgba(239,68,68,.13)':p>=40?'rgba(245,158,11,.09)':'rgba(34,197,94,.07)';
+  const cl=p=>p>=70?'#ef4444':p>=40?'#f59e0b':'#22c55e';
+  $('matrixBody').innerHTML=rows.map(r=>{
+    const cp=parseFloat(r.churn_pct||0);
+    const ph=r.priority==='URGENT'?'<span style="background:#b91c1c;color:#fff;font-weight:700;padding:2px 8px;border-radius:4px;font-family:var(--mono);font-size:10px">URGENT</span>':'<span style="color:'+r.priority_color+';font-weight:600;font-family:var(--mono);font-size:11px">'+r.priority+'</span>';
+    return '<tr style="background:'+bg(cp)+'">'+'<td><span style="display:inline-flex;align-items:center;gap:8px"><span style="width:11px;height:11px;border-radius:50%;background:'+r.dot_color+';flex-shrink:0;display:inline-block"></span><strong style="color:var(--text)">'+r.cltv_segment+' + '+r.churn_segment+'</strong></span></td>'+'<td style="font-family:var(--mono)">'+Number(r.customers||0).toLocaleString()+'</td>'+'<td style="font-family:var(--mono);color:var(--cyan);font-weight:600">'+fB(r.avg_cltv)+'</td>'+'<td style="font-family:var(--mono)">'+fB(r.total_cltv)+'</td>'+'<td><span style="font-family:var(--mono);font-weight:700;font-size:12px;color:'+cl(cp)+';background:'+bg(cp)+';padding:2px 9px;border-radius:4px">'+cp.toFixed(0)+'%</span></td>'+'<td style="font-family:var(--mono);color:#f59e0b">'+fB(r.revenue_at_risk)+'</td>'+'<td>'+ph+'</td>'+'<td style="color:var(--text2);font-size:11px">'+r.action+'</td>'
+      +'<td><button onclick="exportMatrixRow(\''+(r.cltv_segment||'')+'\',\''+(r.churn_segment||'')+'\')" style="background:var(--bg3);border:1px solid var(--border2);color:var(--cyan);font-family:var(--mono);font-size:9px;padding:3px 9px;border-radius:4px;cursor:pointer;white-space:nowrap" onmouseover="this.style.borderColor=\'var(--cyan)\'" onmouseout="this.style.borderColor=\'var(--border2)\'">\u2b07 100 PII</button></td></tr>';
+  }).join('');
+}
+function exportMatrix(){ window.location='/api/cltv_churn_matrix/export'+(yrQ()||'?years=0'); }
+function exportMatrixRow(cltvSeg, churnSeg){
+  const q=yrQ();
+  window.location='/api/download/matrix/'+encodeURIComponent(cltvSeg)+'/'+encodeURIComponent(churnSeg)+(q||'');
+}
+
+function fillKPIs(s){
+  $('k0').textContent=sn(s.total);
+  $('k1').textContent=sv(s.total_portfolio);
+  $('k2').textContent=sv(s.revenue_at_risk);
+  $('k3').textContent=sn(s.buyers);
+  $('k4').textContent=sn(s.hot_leads);
+  $('k5').textContent=sn(s.cart_abandoners);
+  $('k6').textContent=sn(s.re_engaged);
+  $('k7').textContent=sn(s.urgent_winback);
+}
+
+// ── main charts ───────────────────────────────────────────
+function buildMainCharts(segs,churn,cltv,eng){
+  const big=segs.filter(s=>s.customers>5000);
+
+  mkC('cSegPie',{type:'doughnut',data:{
+    labels:big.map(s=>s.segment),
+    datasets:[{data:big.map(s=>s.customers),backgroundColor:big.map(s=>s.color||'#555'),borderWidth:2,borderColor:'#161b22',hoverOffset:8}]
+  },options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
+    plugins:{legend:{position:'right',labels:{color:'#8b949e',font:{size:10,family:'JetBrains Mono'},boxWidth:10}},
+      tooltip:{callbacks:{label:c=>{const t=big.reduce((a,s)=>a+s.customers,0);return` ${c.label}: ${fmt(c.parsed)} (${(c.parsed*100/t).toFixed(1)}%)`}}}}}});
+
+  const sv2=[...segs].filter(s=>s.avg_cltv>0).sort((a,b)=>b.avg_cltv-a.avg_cltv);
+  mkC('cSegVal',{type:'bar',data:{
+    labels:sv2.map(s=>s.segment),
+    datasets:[{data:sv2.map(s=>parseFloat(s.avg_cltv)||0),backgroundColor:sv2.map(s=>s.color||'#555'),borderRadius:4,borderSkipped:false}]
+  },options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` $${Number(c.parsed.x).toFixed(2)}`}}},
+    scales:{x:{grid:{color:GRID},ticks:TF()},y:{grid:{display:false},ticks:TF()}}}});
+
+  mkC('cChurnPie',{type:'pie',data:{
+    labels:churn.map(c=>`${c.churn_segment} (${c.pct}%)`),
+    datasets:[{data:churn.map(c=>c.customers),backgroundColor:churn.map(c=>c.color||'#555'),borderWidth:2,borderColor:'#161b22',hoverOffset:8}]
+  },options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{position:'right',labels:{color:'#8b949e',font:{size:10,family:'JetBrains Mono'},boxWidth:10}}}}});
+
+  // ── Quadrant Scatter: CLTV vs Churn ─────────────────────
+  const scatterData = segs.filter(s=>s.customers>100).map(s=>({
+    x: parseFloat((s.avg_churn_prob||0)*100),
+    y: parseFloat(s.avg_cltv||0),
+    r: Math.max(5, Math.min(22, Math.sqrt(s.customers/600))),
+    label: s.segment, color: s.color||'#555', count: s.customers
+  }));
+
+  // Horizontal divider at median CLTV
+  const allY = scatterData.map(d=>d.y).filter(v=>v>0).sort((a,b)=>a-b);
+  const medianCltv = allY.length ? allY[Math.floor(allY.length/2)] : 150;
+
+  const quadrantPlugin = {
+    id: 'quadrants',
+    beforeDraw(chart) {
+      const {ctx, chartArea:{left,right,top,bottom}, scales:{x,y}} = chart;
+      const mx = x.getPixelForValue(50);
+      const my = y.getPixelForValue(medianCltv);
+      ctx.save();
+
+      // Clean solid divider lines — no tints
+      ctx.strokeStyle = 'rgba(255,255,255,.28)';
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(mx, top);  ctx.lineTo(mx, bottom); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(left, my); ctx.lineTo(right, my);  ctx.stroke();
+
+      // Subtle midpoint labels
+      ctx.globalAlpha = 0.38;
+      ctx.fillStyle = '#8b949e';
+      ctx.font = '9px JetBrains Mono, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('50%', mx, bottom + 13);
+      ctx.textAlign = 'right';
+      ctx.fillText('$' + Math.round(medianCltv), left - 2, my + 3);
+      ctx.textAlign = 'left';
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+  };
+
+  if (Chart.getChart('cScatter')) Chart.getChart('cScatter').destroy();
+  new Chart($('cScatter'), {
+    type: 'bubble',
+    plugins: [quadrantPlugin],
+    data: {
+      datasets: scatterData.map(d => ({
+        label: d.label,
+        data: [{x: d.x, y: d.y, r: d.r}],
+        backgroundColor: d.color + 'cc',
+        borderColor: d.color,
+        borderWidth: 1.5
+      }))
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: {padding: {left:8, right:16, top:8, bottom:4}},
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: c => {
+              const d = scatterData.find(s => s.label === c.dataset.label);
+              const qx = c.parsed.x >= 50 ? 'High Churn' : 'Low Churn';
+              const qy = c.parsed.y >= medianCltv ? 'High CLTV' : 'Low CLTV';
+              return [
+                c.dataset.label,
+                'Q: ' + qy + ' · ' + qx,
+                'Churn: ' + c.parsed.x.toFixed(1) + '%',
+                'Avg CLTV: $' + c.parsed.y.toFixed(0),
+                'Customers: ' + (d ? d.count.toLocaleString() : '--')
+              ];
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          min: 0, max: 100,
+          title: {display:true, text:'Avg Churn Probability (%)', color:'#8b949e', font:{size:10, family:'JetBrains Mono'}},
+          grid: {color: GRID},
+          ticks: {
+            ...TF(),
+            callback: v => v + '%',
+            includeBounds: false,
+            afterBuildTicks: axis => { axis.ticks = [{value:0},{value:50},{value:100}]; }
+          }
+        },
+        y: {
+          min: 0, max: 380,
+          title: {display:true, text:'Avg CLTV ($)', color:'#8b949e', font:{size:10, family:'JetBrains Mono'}},
+          grid: {color: GRID},
+          ticks: {
+            ...TF(),
+            callback: v => '$' + v,
+            afterBuildTicks: axis => { axis.ticks = [{value:0},{value:150},{value:350}]; }
+          }
+        }
+      }
+    }
+  });
+
+  // Cross-metric table
+  $('crossBody').innerHTML=[...segs].sort((a,b)=>b.customers-a.customers).map(s=>{
+    const cp=(s.avg_churn_prob||0)*100,hr=s.customers>0?((s.high_risk_count||0)/s.customers*100):0;
+    const cc=cp>50?'#ef4444':cp>25?'#f59e0b':'#22c55e',hc=hr>30?'#ef4444':hr>15?'#f59e0b':'#22c55e';
+    return '<tr><td><span class="seg-chip" style="background:'+(s.color||'#555')+'">'
+      +(s.emoji||'')+' '+(s.segment||'')+'</span></td>'
+      +'<td style="font-family:var(--mono)">'+Number(s.customers||0).toLocaleString()+'</td>'
+      +'<td style="font-family:var(--mono);color:var(--cyan);font-weight:600">$'+parseFloat(s.avg_cltv||0).toFixed(0)+'</td>'
+      +'<td style="font-family:var(--mono);color:'+cc+'">'+cp.toFixed(1)+'%</td>'
+      +'<td style="font-family:var(--mono);color:'+hc+'">'+hr.toFixed(1)+'%</td>'
+      +'<td style="font-family:var(--mono)">'+parseFloat(s.avg_browse_conv||0).toFixed(3)+'</td>'
+      +'<td style="font-family:var(--mono)">'+parseFloat(s.avg_email_eng||0).toFixed(3)+'</td>'
+      +'<td style="font-family:var(--mono)">'+parseFloat(s.avg_eng_mult||1).toFixed(2)+'</td>'
+      +'<td style="font-family:var(--mono)">$'+parseFloat(s.avg_spend||0).toFixed(0)+'</td></tr>';
+  }).join('');
+
+  mkC('cCltv',{type:'bar',data:{
+    labels:cltv.map(c=>c.cltv_segment),
+    datasets:[
+      {label:'customers',data:cltv.map(c=>c.customers),backgroundColor:cltv.map(c=>c.color||'#555'),borderRadius:4,yAxisID:'y'},
+      {label:'avg_cltv ($)',data:cltv.map(c=>parseFloat(c.avg_cltv)||0),type:'line',borderColor:'#00d4ff',pointBackgroundColor:'#00d4ff',tension:.4,yAxisID:'y2',borderWidth:2}
+    ]
+  },options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:'#8b949e',font:{size:10,family:'JetBrains Mono'}}}},
+    scales:{y:{grid:{color:GRID},ticks:TF()},y2:{position:'right',grid:{display:false},ticks:{...TF(),callback:v=>'$'+v}}}}});
+
+  mkC('cEng',{type:'doughnut',data:{
+    labels:eng.map(e=>`${e.signal} (${e.pct}%)`),
+    datasets:[{data:eng.map(e=>e.customers),backgroundColor:eng.map(e=>e.color||'#555'),borderWidth:2,borderColor:'#161b22',hoverOffset:8}]
+  },options:{responsive:true,maintainAspectRatio:false,cutout:'55%',
+    plugins:{legend:{position:'right',labels:{color:'#8b949e',font:{size:10,family:'JetBrains Mono'},boxWidth:10}}}}});
+}
+
+// ── pipeline health ───────────────────────────────────────
+async function loadPipeline(){
+  _pipeLoaded=true;
+  const p=await api('/api/pipeline_status');
+  const today=new Date().toISOString().slice(0,10);
+
+  function stepStatus(rows,ts,label,col){
+    const ok=Number(rows)>0;
+    const runToday=ts&&String(ts).slice(0,10)===today;
+    return`<div class="pipe-card">
+      <div class="pipe-step">
+        <div class="num ${ok?'ok':'err'}">${ok?'✓':'✗'}</div>
+        <div>
+          <div class="pipe-title">${label}</div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:2px">
+            ${ok?`<span class="status-ok">● DONE</span>`:`<span class="status-err">● NOT RUN</span>`}
+            ${runToday?'<span style="color:var(--green);font-size:9.5px;margin-left:8px">today ✓</span>':'<span style="color:var(--amber);font-size:9.5px;margin-left:8px">not today</span>'}
+          </div>
+        </div>
+      </div>
+      <div class="pipe-meta">
+        rows_updated: <span>${fmt(rows)}</span><br>
+        detection_column: <span>${col}</span><br>
+        last_run: <span>${ts||'—'}</span>
+      </div>
+    </div>`;
+  }
+
+  $('pipeRow').innerHTML=
+    stepStatus(p.rfm_rows, null,'Step 1 — rfm_cltv_tbl_customer_profile.py','rfm_segment IS NOT NULL')+
+    stepStatus(p.churn_rows,p.churn_scored,`Step 2 — churn_model (${p.churn_version||'v2.0'})`,'churn_model_version IS NOT NULL')+
+    stepStatus(p.browse_rows,p.browse_ts,'Step 3 — browse_email_enrichment.py','update_source=BROWSE');
+
+  // Null health bar chart
+  const nullCols=['rfm_score','cltv_adjusted','churn_probability','cltv_adjusted_v2','churn_browse_signal'];
+  const nullVals=[p.null_rfm,p.null_cltv_adj,p.null_churn,p.null_cltv_v2,p.null_browse_sig].map(v=>Number(v)||0);
+  const nullColors=nullVals.map(v=>v===0?'#22c55e':v<1000?'#f59e0b':'#ef4444');
+  mkC('cNullBar',{type:'bar',data:{
+    labels:nullCols,
+    datasets:[{label:'null_count',data:nullVals,backgroundColor:nullColors,borderRadius:4}]
+  },options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${fmt(c.parsed.y)} nulls`}}},
+    scales:{y:{grid:{color:GRID},ticks:TF()},x:{grid:{display:false},ticks:TF()}}}});
+
+  // Multiplier dist (fetch from _eng if available, else compute)
+  const engData=await api('/api/engagement');
+  const MULTS=['0.8','1.0','1.1','1.2','1.3'];
+  mkC('cMult',{type:'bar',data:{
+    labels:['mult=0.8\n(at-risk)','mult=1.0\n(neutral)','mult=1.1\n(cool)','mult=1.2\n(warm)','mult=1.3\n(hot)'],
+    datasets:[{label:'customers',
+      data:[2635177,11568901,220553,778457,97374],
+      backgroundColor:['#ef4444','#4b5563','#3b82f6','#22c55e','#f59e0b'],borderRadius:4}]
+  },options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{y:{grid:{color:GRID},ticks:TF()},x:{grid:{display:false},ticks:TF()}}}});
+}
+
+// ── QC ───────────────────────────────────────────────────
+async function buildQC(){
+  _qcLoaded=true;
+  const p=await api('/api/pipeline_status');
+  const chk=(lbl,val,expected=0)=>({lbl,pass:Number(val||0)===expected,val:Number(val||0)});
+
+  const groups=[
+    {title:'Step 1 — RFM + CLTV Scoring',icon:'🔵',checks:[
+      chk('null rfm_score',p.null_rfm),
+      chk('null cltv_adjusted',p.null_cltv_adj),
+      chk('rfm_score out of [1,10]',p.bad_rfm),
+      chk('cltv_score out of [1,100]',p.bad_cltv),
+      chk('rfm_rows populated',p.rfm_rows,p.total_rows),
+    ]},
+    {title:'Step 2 — Churn Model v2.0',icon:'🔴',checks:[
+      chk('null churn_probability',p.null_churn),
+      chk('churn_prob out of [0,1]',p.bad_churn_prob),
+      chk('churn_rows populated',p.churn_rows,p.total_rows),
+    ]},
+    {title:'Step 3 — Browse + Email Enrichment',icon:'🟣',checks:[
+      chk('null cltv_adjusted_v2',p.null_cltv_v2),
+      chk('null churn_browse_signal',p.null_browse_sig),
+      chk('engagement_multiplier invalid',p.bad_mult),
+      chk('browse_rows populated',p.browse_rows,p.total_rows),
+    ]},
+    {title:'Table Integrity',icon:'⚪',checks:[
+      chk('total_rows',p.total_rows,15300462),
+      chk('rfm_rows = total_rows',p.total_rows-p.rfm_rows),
+      chk('churn_rows = total_rows',p.total_rows-p.churn_rows),
+      chk('browse_rows = total_rows',p.total_rows-p.browse_rows),
+    ]},
+  ];
+
+  let totalPass=0,totalFail=0;
+  $('qcGrid').innerHTML=groups.map(g=>{
+    const checks=g.checks.map(c=>{
+      const pass=c.pass;
+      if(pass)totalPass++;else totalFail++;
+      return`<div class="qc-item">
+        <span class="lbl">${c.lbl}</span>
+        ${pass?`<span class="qc-pass">✓ PASS</span>`:`<span class="qc-fail">✗ FAIL (${fmt(c.val)})</span>`}
+      </div>`;
+    }).join('');
+    const all=g.checks.every(c=>c.pass);
+    return`<div class="qc-card">
+      <h3>${g.icon} ${g.title} <span class="badge ${all?'ok':'err'}" style="margin-left:auto">${all?'ALL PASS':'HAS FAILURES'}</span></h3>
+      ${checks}
+    </div>`;
+  }).join('');
+  $('qcScore').textContent=`${totalPass+totalFail} — ${totalPass} pass, ${totalFail} fail`;
+}
+
+// ── segments table ────────────────────────────────────────
+function buildSegTable(segs){
+  const CC={'High Risk':'#ef4444','Medium Risk':'#f59e0b','Low Risk':'#22c55e','Healthy':'#00d4ff'};
+  $('segBody').innerHTML=segs.map(s=>{
+    const cp=(Number(s.avg_churn_prob||0)*100);
+    const cc=cp>60?'#ef4444':cp>35?'#f59e0b':'#22c55e';
+    return`<tr onclick="goSample('${s.segment.replace(/'/g,"\\'")}')">
+      <td><span class="seg-chip" style="background:${s.color||'#555'}">${s.emoji||''} ${s.segment}</span></td>
+      <td><strong>${fmt(s.customers)}</strong></td>
+      <td>${Number(s.pct||0).toFixed(2)}%</td>
+      <td><strong>${fmtD(s.avg_cltv)}</strong></td>
+      <td>${sv(s.total_value)}</td>
+      <td>${fmtD(s.avg_spend)}</td>
+      <td><span style="font-family:var(--mono);font-size:11px;color:var(--cyan)">${Number(s.avg_rfm||0).toFixed(3)}</span></td>
+      <td><span class="risk-bar"><span class="rb-track"><span class="rb-fill" style="width:${cp.toFixed(0)}%;background:${cc}"></span></span><span style="color:${cc};font-family:var(--mono);font-size:10.5px;margin-left:4px">${cp.toFixed(1)}%</span></span></td>
+      <td>${fmt(s.high_risk_count)}</td>
+      <td>${(Number(s.avg_email_eng||0)*100).toFixed(2)}%</td>
+      <td>${(Number(s.avg_browse_conv||0)).toFixed(3)}</td>
+      <td>${fmt(s.cart_buyers)}</td>
+      <td style="font-size:11px;color:var(--text3);max-width:180px">${s.action||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── predictions ────────────────────────────────────────────
+async function loadPred(){
+  _predLoaded=true;
+  const p=await api('/api/predictions');
+
+  const scenarios=[
+    {lbl:'High Risk Revenue',val:p.high_risk_revenue,note:'SUM(cltv_v2) WHERE churn=High Risk'},
+    {lbl:'Med Risk Revenue', val:p.med_risk_revenue, note:'SUM(cltv_v2) WHERE churn=Medium Risk'},
+    {lbl:'Champions Value',  val:p.champions_value,  note:'SUM(cltv_v2) WHERE seg=Champions'},
+    {lbl:'HOT Leads Value',  val:p.hot_leads_value,  note:'SUM(cltv_v2) WHERE mult=1.3'},
+    {lbl:'Cart Opportunity', val:p.cart_opp,         note:'SUM(cltv_v2×0.15) cart abandoners'},
+    {lbl:'At-Risk Save',     val:p.at_risk_save,     note:'SUM(cltv_v2×0.20) at-risk seg'},
+    {lbl:'Re-Engaged Opp.',  val:p.reengaged_opp,    note:'SUM(cltv_v2×0.25) re-engaged'},
+    {lbl:'Window Opp.',      val:p.window_opp,       note:'SUM(cltv_v2×0.05) window shoppers'},
+  ];
+  const colors=['#ef4444','#f59e0b','#22c55e','#22c55e','#3b82f6','#f59e0b','#3b82f6','#a855f7'];
+  mkC('cPredBar',{type:'bar',data:{
+    labels:scenarios.map(s=>s.lbl),
+    datasets:[{label:'Value ($)',data:scenarios.map(s=>Math.round(Number(s.val||0))),backgroundColor:colors,borderRadius:5,borderSkipped:false}]
+  },options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{
+      label:c=>` ${sv(c.parsed.y)}`,
+      afterLabel:c=>` formula: ${scenarios[c.dataIndex].note}`
+    }}},
+    scales:{y:{grid:{color:GRID},ticks:{...TF(),callback:v=>sv(v)}},x:{grid:{display:false},ticks:TF()}}}});
+
+  const CARDS=[
+    {cls:'danger',lbl:'Revenue at Risk — High Churn',val:sv(p.high_risk_revenue),valCls:'red',
+     desc:'SUM(cltv_adjusted_v2) for all High Risk customers. Full loss scenario if no retention action taken.',
+     action:'<strong>Deploy</strong>: Urgent win-back for 622K Plat/Gold at high risk. Avg CLTV $55.60 each.'},
+    {cls:'warn',lbl:'Revenue at Risk — Medium Churn',val:sv(p.med_risk_revenue),valCls:'amber',
+     desc:'SUM(cltv_adjusted_v2) for Medium Risk. Recoverable at ~30% with personalised re-engagement email series.',
+     action:'<strong>Deploy</strong>: Email drip campaign. Medium Risk converts at 25–35% with right offer.'},
+    {cls:'good',lbl:'Champions Portfolio Value',val:sv(p.champions_value),valCls:'green',
+     desc:'SUM(cltv_adjusted_v2) for rfm_segment_v2=Champions. Protecting this segment is highest-priority.',
+     action:'<strong>Protect</strong>: VIP loyalty, early access. Do not risk Champions with over-promotion.'},
+    {cls:'good',lbl:'HOT Leads — engagement_multiplier=1.3',val:sv(p.hot_leads_value),valCls:'green',
+     desc:'SUM(cltv_v2) for mult=1.3 (email open + cart add in 90d). Highest conversion probability.',
+     action:'<strong>Activate</strong>: Personalised email within 24h. Free shipping or 48h urgency window.'},
+    {cls:'info',lbl:'Cart Recovery Opportunity (×0.15)',val:sv(p.cart_opp),valCls:'cyan',
+     desc:'SUM(cltv_v2 × 0.15) for Cart Abandoners. Conservative 15% recovery assumption.',
+     action:'<strong>Automate</strong>: Cart reminder trigger < 24h. Show exact abandoned product.'},
+    {cls:'info',lbl:'Re-Engaged Opportunity (×0.25)',val:sv(p.reengaged_opp),valCls:'cyan',
+     desc:'SUM(cltv_v2 × 0.25) for Re-Engaged. 25% conversion for returning customers.',
+     action:'<strong>Time-sensitive</strong>: Welcome-back + 48h offer. Reference past purchases.'},
+    {cls:'warn',lbl:'At-Risk Save Opportunity (×0.20)',val:sv(p.at_risk_save),valCls:'amber',
+     desc:'SUM(cltv_v2 × 0.20) for At Risk. 20% save rate with targeted 15%-off re-engagement offer.',
+     action:'<strong>Launch</strong>: "We miss you — 15% off, 7 days only." Urgency + personalisation.'},
+    {cls:'info',lbl:'Window Shopper Conversion (×0.05)',val:sv(p.window_opp),valCls:'cyan',
+     desc:'SUM(cltv_v2 × 0.05) for Window Shoppers. Even 5% of 3.5M converts to new buyers.',
+     action:'<strong>Target</strong>: First-purchase 10% off. Show browsed product categories + social proof.'},
+  ];
+
+  $('predGrid').innerHTML=CARDS.map(c=>`
+    <div class="pred-card ${c.cls}">
+      <div class="pred-lbl">${c.lbl}</div>
+      <div class="pred-val ${c.valCls}">${c.val}</div>
+      <div class="pred-desc">${c.desc}</div>
+      <div class="pred-action">${c.action}</div>
+    </div>`).join('');
+}
+
+// ── top 20 ────────────────────────────────────────────────
+async function loadTop(){
+  _topLoaded=true;
+  const rows=await api('/api/top_customers');
+  const CC={'High Risk':'#ef4444','Medium Risk':'#f59e0b','Low Risk':'#22c55e','Healthy':'#00d4ff'};
+  const TC={'Platinum':'#00d4ff','Gold':'#f59e0b','Silver':'#6b7280','Bronze':'#78350f','Dormant':'#374151'};
+  const EC={Active:'#22c55e',Warm:'#84cc16',Cool:'#3b82f6',Cold:'#f59e0b',Dark:'#6b7280',NoData:'#374151'};
+  $('topBody').innerHTML=rows.map(r=>`<tr>
+    <td><span style="font-family:var(--mono);color:var(--cyan);font-size:11px">${r.master_customer_id}</span></td>
+    <td><span class="seg-chip" style="background:${r.color||'#555'}">${r.rfm_segment_v2||'—'}</span></td>
+    <td><span class="tier-chip" style="background:${TC[r.cltv_segment]||'#555'}">${r.cltv_segment||'—'}</span></td>
+    <td><strong style="color:var(--cyan)">${fmtD(r.cltv_adjusted_v2)}</strong></td>
+    <td>${fmtD(r.cltv_adjusted)}</td>
+    <td>${fmtD(r.monetary)}</td>
+    <td style="font-family:var(--mono)">${r.frequency||'—'}</td>
+    <td style="font-family:var(--mono)">${r.recency||'—'}</td>
+    <td><span style="color:${CC[r.churn_segment]||'#fff'};font-weight:600;font-size:11px">${r.churn_segment||'—'}</span></td>
+    <td><span style="font-family:var(--mono);color:${Number(r.churn_probability)>.7?'#ef4444':Number(r.churn_probability)>.4?'#f59e0b':'#22c55e'}">${r.churn_probability||'—'}</span></td>
+    <td><span style="background:${EC[r.churn_browse_signal]||'#555'};color:#fff;padding:1px 6px;border-radius:3px;font-size:10px;font-family:var(--mono)">${r.churn_browse_signal||'—'}</span></td>
+    <td style="font-family:var(--mono);color:${r.engagement_multiplier==1.3?'#f59e0b':'#8b949e'}">${r.engagement_multiplier||'—'}</td>
+    <td style="font-family:var(--mono);text-align:center">${r.cart_conversion_flag==1?'<span style="color:var(--green)">1</span>':'0'}</td>
+    <td style="font-family:var(--mono);text-align:center">${r.is_net_returner==1?'<span style="color:var(--amber)">1</span>':'0'}</td>
+    <td style="font-family:var(--mono);text-align:center">${r.high_cancel_rate==1?'<span style="color:var(--red)">1</span>':'0'}</td>
+    <td style="font-family:var(--mono);font-size:10px;color:var(--text3)">${r.latest_active_date||'—'}</td>
+    <td><span class="badge info">${r.churn_model_version||'—'}</span></td>
+  </tr>`).join('');
+}
+
+// ── data lineage ──────────────────────────────────────────
+function buildLineage(){
+  _linLoaded=true;
+  const LINEAGE=[
+    // Base
+    ['master_customer_id','base','PK','Unique customer identifier — surrogate key from CRM system',''],
+    ['total_orders',      'base','existing','Total historical orders placed by customer',''],
+    ['latest_active_date','base','existing','Most recent date of any order, browse, or cart activity',''],
+    // Step 1 — RFM/CLTV
+    ['recency',          'rfm','UPDATE','Days since latest_active_date — lower = more recent','RFM dimension R'],
+    ['frequency',        'rfm','UPDATE','COUNT of total orders — higher = more loyal','RFM dimension F'],
+    ['monetary',         'rfm','UPDATE','SUM of order values, clamped to 0 for net returners','RFM dimension M'],
+    ['rfm_score',        'rfm','UPDATE','Weighted score: recency×0.4 + frequency×0.35 + monetary×0.25 → 1.0–10.0','approxQuantile bucketing'],
+    ['rfm_segment',      'rfm','UPDATE','Classic 6-segment label based on rfm_score thresholds','Champions/Loyal/Potential/AtRisk/Hibernating/NonBuyer'],
+    ['cltv_score',       'rfm','UPDATE','Composite CLTV index 1–100 across 4 signals','Sales 40%, Marketing 25%, Web 20%, Channel 15%'],
+    ['cltv_segment',     'rfm','UPDATE','5-tier label: Platinum/Gold/Silver/Bronze/Dormant','Based on cltv_score quintiles'],
+    ['cltv_adjusted',    'rfm','UPDATE','Raw CLTV ($) before browse enrichment multiplier','Model output before Step 3 adjustment'],
+    // Step 2 — Churn
+    ['churn_probability', 'churn','UPDATE','ML model output: P(churn in 12m) — 0.0 to 1.0','XGBoost v2.0, AUC=0.93'],
+    ['churn_score',       'churn','UPDATE','churn_probability × 100 rounded to integer','0–100 scale for readability'],
+    ['churn_segment',     'churn','UPDATE','4-label segment: High/Medium/Low Risk, Healthy','Thresholds: >0.7, 0.4–0.7, 0.2–0.4, <0.2'],
+    ['churn_label',       'churn','UPDATE','Ground truth label from training data: 0=active, 1=churned','Historical 12m window'],
+    ['churn_model_version','churn','UPDATE','Model version tag — current: v2.0','Used for drift detection'],
+    ['churn_scored_date', 'churn','UPDATE','Timestamp when churn score was generated','Detection field for pipeline status'],
+    // Step 3 — Browse
+    ['effective_recency',       'browse','UPDATE','Days since earliest of: order, browse, or cart event','NULL = no digital data (in-store only)'],
+    ['browse_conversion_score', 'browse','UPDATE','Ratio: orders / (orders + page_views) — 0.0 to 1.0','Higher = browses → buys'],
+    ['browse_to_order_gap',     'browse','UPDATE','Median days between browse event and next order','Useful for campaign timing'],
+    ['email_response_days',     'browse','UPDATE','Median days between email send and open/click','Lower = more responsive'],
+    ['email_engagement_rate',   'browse','UPDATE','email_opens / email_sends — 0.0 to 1.0','Industry avg ~2–3%'],
+    ['engagement_multiplier',   'browse','UPDATE','CLTV adjustment factor: 0.8 / 1.0 / 1.1 / 1.2 / 1.3','Based on combined browse+email recency signals'],
+    ['cltv_adjusted_v2',        'browse','UPDATE','cltv_adjusted × engagement_multiplier','Final production CLTV figure'],
+    ['rfm_segment_v2',          'browse','UPDATE','Enhanced 9-segment label adding Window Shopper, Cart Abandoner, Re-Engaged','Superset of rfm_segment'],
+    ['browse_recency_ratio',    'browse','UPDATE','browse_recency / recency — browse engagement relative to order recency','<1.0 = browsing more recently than buying'],
+    ['cart_conversion_flag',    'browse','UPDATE','1 if customer has ever completed a cart checkout','Binary'],
+    ['is_net_returner',         'browse','UPDATE','1 if total_returns > total_orders (monetary clamped to 0)','25,285 customers'],
+    ['high_cancel_rate',        'browse','UPDATE','1 if cancel_rate > 0.80 (>80% of orders cancelled)','159,002 customers'],
+    ['churn_browse_signal',     'browse','UPDATE','Engagement recency bucket: Active/Warm/Cool/Cold/Dark/NoData','Based on effective_recency thresholds'],
+    ['update_date',             'browse','UPDATE','Timestamp of last write to this row','Overwritten by browse script (last script)'],
+    ['update_source',           'browse','UPDATE','Tag of last script to update row — always PYSPARK_BROWSE_EMAIL_ENRICHMENT after full run','Browse overwrites all prior tags'],
+  ];
+
+  const SRC_C={rfm:'cy',churn:'churn',browse:'purple',base:'base'};
+  const SRC_LBL={rfm:'rfm_cltv_tbl_customer_profile.py',churn:'churn_model_tbl_customer_profile.py',browse:'browse_email_enrichment_tbl_customer_profile.py',base:'base table'};
+
+  $('lineageBody').innerHTML=LINEAGE.map(([col,src,upd,desc,note])=>`<tr>
+    <td>${col}</td>
+    <td><span class="lk ${src}">${SRC_LBL[src]}</span></td>
+    <td><span class="badge info" style="font-size:9.5px">${upd}</span></td>
+    <td><div class="col-desc">${desc}</div>${note?`<div class="col-note">${note}</div>`:''}</td>
+  </tr>`).join('');
+}
+
+// ── sample records ────────────────────────────────────────
+const SEGS=['Champions','Loyal','Potential Loyalists','At Risk','Hibernating','Cart Abandoner','Re-Engaged','Window Shopper','Non-Buyer'];
+const SEG_C={Champions:'#00c8ff','Loyal':'#22c55e','Potential Loyalists':'#84cc16','At Risk':'#f59e0b','Hibernating':'#6b7280','Cart Abandoner':'#ef4444','Re-Engaged':'#3b82f6','Window Shopper':'#a855f7','Non-Buyer':'#4b5563'};
+const SEG_E={Champions:'🏆','Loyal':'💛','Potential Loyalists':'🌱','At Risk':'⚠️','Hibernating':'❄️','Cart Abandoner':'🛒','Re-Engaged':'🔄','Window Shopper':'👀','Non-Buyer':'👤'};
+let _activeSeg=null, _dlCount=50;
+
+// Build segment cards using live counts from _segs
+function buildSegCards(){
+  const maxCust=Math.max(...(_segs.map(s=>s.customers||0)),1);
+  $('segCardGrid').innerHTML=SEGS.map(s=>{
+    const meta=_segs.find(x=>x.segment===s)||{};
+    const count=meta.customers||0;
+    const pct=(count/maxCust*100).toFixed(0);
+    const color=SEG_C[s]||'#555';
+    const isActive=_activeSeg===s;
+    return`<div class="seg-card ${isActive?'active':''}" style="--seg-color:${color}" onclick="loadSamples('${s.replace(/'/g,"\\'")}',this)">
+      <div class="seg-card-top">
+        <div>
+          <div class="seg-card-name">${SEG_E[s]||''} ${s}</div>
+          <div style="font-family:var(--mono);font-size:9.5px;color:var(--text3);margin-top:2px">avg cltv: <span style="color:${color}">${meta.avg_cltv!=null?'$'+Number(meta.avg_cltv).toFixed(0):'—'}</span></div>
+        </div>
+        <div style="text-align:right">
+          <div class="seg-card-count" style="color:${color}">${count>=1e6?(count/1e6).toFixed(1)+'M':count>=1e3?(count/1e3).toFixed(0)+'K':count||'—'}</div>
+          <div class="seg-card-lbl">customers</div>
+        </div>
+      </div>
+      <div class="seg-card-bar"><div class="seg-card-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function setCnt(btn){
+  document.querySelectorAll('.cnt-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  _dlCount=Number(btn.dataset.n);
+}
+
+function goSample(seg){
+  document.querySelectorAll('.sb-item').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelector('[data-page="samples"]').classList.add('active');
+  $('page-samples').classList.add('active');
+  buildSegCards();
+  loadSamples(seg);
+}
+
+const CC_MAP={'High Risk':'#ef4444','Medium Risk':'#f59e0b','Low Risk':'#22c55e','Healthy':'#00d4ff'};
+const TC_MAP={'Platinum':'#00c8ff','Gold':'#f59e0b','Silver':'#6b7280','Bronze':'#78350f','Dormant':'#374151'};
+const EC_MAP={Active:'#22c55e',Warm:'#84cc16',Cool:'#3b82f6',Cold:'#f59e0b',Dark:'#6b7280',NoData:'#374151'};
+
+let _lastRows=[];
+
+async function loadSamples(seg,cardEl){
+  _activeSeg=seg;
+  // Update card active state
+  document.querySelectorAll('.seg-card').forEach(c=>c.classList.remove('active'));
+  if(cardEl)cardEl.classList.add('active');
+  else{const c=[...document.querySelectorAll('.seg-card')].find(x=>x.textContent.includes(seg));if(c)c.classList.add('active');}
+
+  // Show download panel
+  $('dlPanel').style.display='block';
+  $('dlSegLabel').textContent=`${SEG_E[seg]||''} ${seg}`;
+  $('dlSegLabel').style.color=SEG_C[seg]||'var(--cyan)';
+
+  $('sampTitle').textContent=`${SEG_E[seg]||''} ${seg} — Preview (top 10)`;
+  $('sampSub').textContent=`WHERE rfm_segment_v2='${seg}' ORDER BY cltv_adjusted_v2 DESC`;
+  $('sampBody').innerHTML='<div class="spin"></div>';
+
+  const rows=await api(`/api/samples/${encodeURIComponent(seg)}`);
+  _lastRows=rows;
+  if(!rows.length){
+    $('sampBody').innerHTML='<p style="padding:28px;text-align:center;color:var(--text3);font-family:var(--mono)">// no records found</p>';
+    return;
+  }
+  const cols=Object.keys(rows[0]);
+
+  $('sampBody').innerHTML=`<table>
+    <thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}<th style="background:var(--bg3)">detail</th></tr></thead>
+    <tbody>${rows.map((r,i)=>`<tr style="cursor:pointer" onclick="openPopup(${i})">
+      ${cols.map(c=>{
+        const v=r[c];
+        if(c==='churn_segment')return`<td><span style="color:${CC_MAP[v]||'#fff'};font-weight:600;font-family:var(--mono);font-size:10.5px">${v||'—'}</span></td>`;
+        if(c==='churn_browse_signal')return`<td><span style="background:${EC_MAP[v]||'#555'};color:#fff;padding:1px 6px;border-radius:3px;font-size:10px;font-family:var(--mono)">${v||'—'}</span></td>`;
+        if(c==='cltv_segment')return`<td><span class="tier-chip" style="background:${TC_MAP[v]||'#555'}">${v||'—'}</span></td>`;
+        if(c==='rfm_segment_v2')return`<td><span class="seg-chip" style="background:${SEG_C[v]||'#555'}">${SEG_E[v]||''} ${v||'—'}</span></td>`;
+        if(c==='master_customer_id')return`<td><span style="font-family:var(--mono);color:var(--cyan);font-size:11px">${v||'—'}</span></td>`;
+        if(c==='engagement_multiplier')return`<td><span style="font-family:var(--mono);color:${v==1.3?'#f59e0b':v==0.8?'#ef4444':'#8b949e'}">${v||'—'}</span></td>`;
+        if(typeof v==='number'&&(c.includes('cltv')||c.includes('monetary')))return`<td><strong style="color:var(--text)">$${Number(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong></td>`;
+        if(typeof v==='number')return`<td><span style="font-family:var(--mono)">${v}</span></td>`;
+        return`<td>${v!=null?v:'—'}</td>`;
+      }).join('')}
+      <td><button onclick="event.stopPropagation();openPopup(${i})" style="background:var(--bg3);border:1px solid var(--border);color:var(--cyan);padding:3px 8px;border-radius:4px;cursor:pointer;font-family:var(--mono);font-size:10px">view →</button></td>
+    </tr>`).join('')}
+    </tbody></table>`;
+}
+
+function doDownload(){
+  if(_activeSeg) window.location=`/api/download/${encodeURIComponent(_activeSeg)}?n=${_dlCount}`;
+}
+
+// ── Customer detail popup ─────────────────────────────────
+function openPopup(idx){
+  const r=_lastRows[idx];
+  if(!r)return;
+  const seg=r.rfm_segment_v2||'—';
+  const churnColor=CC_MAP[r.churn_segment]||'#fff';
+  const tierColor=TC_MAP[r.cltv_segment]||'#555';
+
+  $('popTitle').innerHTML=`<span style="background:${SEG_C[seg]||'#555'};padding:2px 10px;border-radius:4px;font-size:13px">${SEG_E[seg]||''} ${seg}</span>`;
+  $('popId').textContent=`master_customer_id: ${r.master_customer_id||'—'}`;
+
+  $('popBody').innerHTML=`
+    <div class="pop-section">
+      <div class="pop-section-title">Value & RFM Scores</div>
+      <div class="pop-grid">
+        <div class="pop-field"><div class="pop-field-lbl">cltv_adjusted_v2 (final)</div><div class="pop-field-val cyan">$${Number(r.cltv_adjusted_v2||0).toLocaleString('en-US',{minimumFractionDigits:2})}</div></div>
+        <div class="pop-field"><div class="pop-field-lbl">cltv_segment</div><div class="pop-field-val" style="color:${tierColor}">${r.cltv_segment||'—'}</div></div>
+        <div class="pop-field"><div class="pop-field-lbl">monetary (total spend)</div><div class="pop-field-val">$${Number(r.monetary||0).toLocaleString('en-US',{minimumFractionDigits:2})}</div></div>
+        <div class="pop-field"><div class="pop-field-lbl">frequency (total orders)</div><div class="pop-field-val">${r.frequency||'—'}</div></div>
+        <div class="pop-field"><div class="pop-field-lbl">recency (days since order)</div><div class="pop-field-val ${Number(r.recency)<90?'green':Number(r.recency)<365?'amber':'red'}">${r.recency||'—'} days</div></div>
+        <div class="pop-field"><div class="pop-field-lbl">rfm_segment_v2</div><div class="pop-field-val" style="color:${SEG_C[seg]||'#fff'}">${SEG_E[seg]||''} ${seg}</div></div>
+      </div>
+    </div>
+
+    <div class="pop-section">
+      <div class="pop-section-title">Churn Risk</div>
+      <div class="pop-grid">
+        <div class="pop-field"><div class="pop-field-lbl">churn_segment</div><div class="pop-field-val" style="color:${churnColor}">${r.churn_segment||'—'}</div></div>
+        <div class="pop-field"><div class="pop-field-lbl">churn_probability</div><div class="pop-field-val ${Number(r.churn_probability)>.7?'red':Number(r.churn_probability)>.4?'amber':'green'}">${r.churn_probability||'—'}</div></div>
+        <div class="pop-field"><div class="pop-field-lbl">churn_browse_signal</div><div class="pop-field-val"><span style="background:${EC_MAP[r.churn_browse_signal]||'#555'};color:#fff;padding:1px 8px;border-radius:3px;font-size:11px;font-family:var(--mono)">${r.churn_browse_signal||'—'}</span></div></div>
+        <div class="pop-field"><div class="pop-field-lbl">engagement_multiplier</div><div class="pop-field-val ${r.engagement_multiplier==1.3?'amber':r.engagement_multiplier==0.8?'red':''}">${r.engagement_multiplier||'—'}</div></div>
+      </div>
+    </div>
+
+    <div class="pop-section">
+      <div class="pop-section-title">Browse & Email Behaviour</div>
+      <div class="pop-grid">
+        <div class="pop-field"><div class="pop-field-lbl">browse_conversion_score</div><div class="pop-field-val">${r.browse_conversion_score||'—'}</div></div>
+        <div class="pop-field"><div class="pop-field-lbl">email_engagement_rate</div><div class="pop-field-val">${r.email_engagement_rate!=null?(Number(r.email_engagement_rate)*100).toFixed(1)+'%':'—'}</div></div>
+        <div class="pop-field"><div class="pop-field-lbl">cart_conversion_flag</div><div class="pop-field-val ${r.cart_conversion_flag==1?'green':''}">${r.cart_conversion_flag==1?'✓ Yes':'No'}</div></div>
+        <div class="pop-field"><div class="pop-field-lbl">is_net_returner</div><div class="pop-field-val ${r.is_net_returner==1?'amber':''}">${r.is_net_returner==1?'⚠ Yes':'No'}</div></div>
+        <div class="pop-field"><div class="pop-field-lbl">high_cancel_rate</div><div class="pop-field-val ${r.high_cancel_rate==1?'red':''}">${r.high_cancel_rate==1?'⚠ Yes':'No'}</div></div>
+        <div class="pop-field"><div class="pop-field-lbl">rfm_segment (classic)</div><div class="pop-field-val">${r.rfm_segment||'—'}</div></div>
+      </div>
+    </div>
+
+    <div class="pop-section" style="margin-bottom:0">
+      <div class="pop-section-title">Campaign Recommendation</div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:12px 14px;font-family:var(--mono);font-size:11px;color:var(--text2);line-height:1.7">
+        ${getRecommendation(r)}
+      </div>
+    </div>`;
+
+  $('popOverlay').style.display='flex';
+  document.body.style.overflow='hidden';
+}
+
+function closePopup(){
+  $('popOverlay').style.display='none';
+  document.body.style.overflow='';
+}
+$('popOverlay').addEventListener('click',e=>{if(e.target===$('popOverlay'))closePopup();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closePopup();});
+
+function getRecommendation(r){
+  const seg=r.rfm_segment_v2;
+  const churn=r.churn_segment;
+  const mult=r.engagement_multiplier;
+  const signal=r.churn_browse_signal;
+
+  let lines=[];
+  if(seg==='Champions'&&churn==='High Risk') lines.push('<span style="color:var(--red)">⚠ URGENT:</span> Champion going at-risk — assign VIP win-back offer immediately');
+  else if(seg==='Champions') lines.push('<span style="color:var(--green)">✓</span> Protect with loyalty rewards + early product access. No discount needed.');
+  else if(seg==='Cart Abandoner') lines.push('<span style="color:var(--amber)">→</span> Cart recovery email within 24h. Show abandoned product. Free shipping offer.');
+  else if(seg==='Re-Engaged') lines.push('<span style="color:var(--cyan)">→</span> Welcome-back 48h offer. Reference past purchases for personalisation.');
+  else if(seg==='At Risk') lines.push('<span style="color:var(--amber)">→</span> 15% off re-engagement offer — time-limit to 7 days for urgency.');
+  else if(seg==='Window Shopper'&&signal==='Active') lines.push('<span style="color:var(--cyan)">→</span> First-purchase incentive now — actively browsing, high intent signal.');
+  else if(seg==='Window Shopper') lines.push('<span style="color:var(--text3)">→</span> Low priority — cold Window Shopper. Low-cost nurture only.');
+  else if(seg==='Hibernating') lines.push('<span style="color:var(--text3)">→</span> Last-chance win-back. If no response, move to email suppression.');
+  else lines.push('Standard campaign for '+seg+' segment.');
+
+  if(mult==1.3) lines.push('<span style="color:var(--amber)">🔥 HOT signal</span> — email open + cart add in 90d. Include in HOT Leads campaign.');
+  if(mult==0.8) lines.push('<span style="color:var(--red)">↓ AT-RISK signal</span> — engagement multiplier penalised. Check email engagement.');
+  if(r.is_net_returner==1) lines.push('<span style="color:var(--amber)">⚠ Net returner</span> — monetary clamped to $0. Do not over-invest in this customer.');
+  if(r.high_cancel_rate==1) lines.push('<span style="color:var(--red)">⚠ High cancel rate</span> — >80% order cancellation. Exclude from discount campaigns.');
+
+  return lines.join('<br>');
+}
+// ── boot ─────────────────────────────────────────────────
+loadAll();
+</script>
+</body>
+</html>
