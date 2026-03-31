@@ -1,0 +1,4 @@
+Flask==3.0.0
+redshift-connector==2.0.918
+pandas==2.1.4
+numpy==1.26.2

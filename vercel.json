@@ -1,0 +1,30 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "public/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "api/index.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "public/$1"
+    }
+  ],
+  "env": {
+    "REDSHIFT_HOST": "@redshift_host",
+    "REDSHIFT_PORT": "@redshift_port",
+    "REDSHIFT_DATABASE": "@redshift_database",
+    "REDSHIFT_USER": "@redshift_user",
+    "REDSHIFT_PASSWORD": "@redshift_password"
+  }
+}
