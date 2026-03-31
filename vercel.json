@@ -19,12 +19,5 @@
       "src": "/(.*)",
       "dest": "public/$1"
     }
-  ],
-  "env": {
-    "REDSHIFT_HOST": "@redshift_host",
-    "REDSHIFT_PORT": "@redshift_port",
-    "REDSHIFT_DATABASE": "@redshift_database",
-    "REDSHIFT_USER": "@redshift_user",
-    "REDSHIFT_PASSWORD": "@redshift_password"
-  }
+  ]
 }
