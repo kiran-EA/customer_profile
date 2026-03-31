@@ -19,6 +19,9 @@ except ImportError as e:
 
 app = Flask(__name__)
 
+# Resolve the absolute path to the public directory
+PUBLIC_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'public')
+
 # ══════════════════════════════════════════════════════════
 # CONFIGURATION
 # ══════════════════════════════════════════════════════════
@@ -419,12 +422,12 @@ def api_download(segment):
 @app.route("/")
 def index():
     """Serve the main dashboard HTML"""
-    return send_from_directory("public", "index.html")
+    return send_from_directory(PUBLIC_DIR, "index.html")
 
 @app.route("/<path:path>")
 def serve_static(path):
     """Serve static files"""
-    return send_from_directory("public", path)
+    return send_from_directory(PUBLIC_DIR, path)
 
 # Vercel serverless handler
 def handler(request):
