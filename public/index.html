@@ -86,6 +86,19 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);display:flex
 .page.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
+/* ── global filter bar (sticky across all tabs) ── */
+#globalBar{
+  position:sticky;top:0;z-index:100;
+  background:var(--bg);border-bottom:1px solid var(--border);
+  margin:-24px -28px 20px;padding:10px 28px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+#gbLeft{display:flex;align-items:baseline;gap:10px;min-width:0;overflow:hidden}
+#gbTitle{font-family:var(--display);font-size:19px;font-weight:700;color:var(--text);white-space:nowrap}
+#gbSub{font-family:var(--mono);font-size:10.5px;color:var(--text3);white-space:nowrap}
+#gbRight{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.fctx{color:var(--cyan);font-family:var(--mono);font-size:10.5px;font-weight:600}
+
 /* ── topbar ── */
 .topbar{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px}
 .tb-left h2{font-family:var(--display);font-size:22px;color:var(--text)}
@@ -592,7 +605,8 @@ tbody td strong{color:var(--text)}
     font-family: 'Syne', sans-serif;
     font-weight: 700;
   }
-#page-matrix .tooltip {
+/* tooltip works outside #page-matrix too (id="tooltip" is a sibling) */
+#tooltip,#page-matrix .tooltip {
     display: none;
     position: fixed;
     z-index: 99999;
@@ -605,8 +619,8 @@ tbody td strong{color:var(--text)}
     pointer-events: none;
     box-shadow: 0 20px 60px rgba(0,0,0,0.9), inset 0 0 20px rgba(0,212,255,0.1);
   }
-#page-matrix .tooltip.visible { display: block !important; }
-#page-matrix .tt-title {
+#tooltip.visible,#page-matrix .tooltip.visible { display: block !important; }
+.tt-title,#page-matrix .tt-title {
     font-family: 'Syne', sans-serif;
     font-size: 15px;
     font-weight: 800;
@@ -615,7 +629,7 @@ tbody td strong{color:var(--text)}
     padding-bottom: 10px;
     border-bottom: 1px solid rgba(255,255,255,.1);
   }
-#page-matrix .tt-row {
+.tt-row,#page-matrix .tt-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -625,8 +639,8 @@ tbody td strong{color:var(--text)}
     font-family: 'JetBrains Mono', monospace;
     word-break: break-word;
   }
-#page-matrix .tt-row span:first-child { flex-shrink: 0; margin-right: 8px; }
-#page-matrix .tt-row span:last-child { color: var(--text); text-align: right; flex-shrink: 0; }
+.tt-row span:first-child,#page-matrix .tt-row span:first-child { flex-shrink: 0; margin-right: 8px; }
+.tt-row span:last-child,#page-matrix .tt-row span:last-child { color: var(--text); text-align: right; flex-shrink: 0; }
 #page-matrix .stats-row {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
@@ -720,33 +734,41 @@ tbody td strong{color:var(--text)}
 <!-- ══ MAIN ══════════════════════════════════════════════ -->
 <main class="main">
 
+<!-- ── GLOBAL FILTER BAR (always visible, all tabs) ─────── -->
+<div id="globalBar">
+  <div id="gbLeft">
+    <span id="gbTitle">Customer Intelligence</span>
+    <span id="gbSub">KIRAN.TBL_CUSTOMER_PROFILE • live redshift • <span id="ts0">—</span></span>
+  </div>
+  <div id="gbRight">
+    <div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 12px">
+      <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">CUSTOMER TYPE</span>
+      <select id="custTypeFilter" size="1" onchange="applyCustTypeFilter()" style="background:var(--bg3);border:1px solid var(--border2);color:var(--cyan);font-family:var(--mono);font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;cursor:pointer;outline:none;min-width:120px">
+        <option value="WEB+PRO" selected>WEB+PRO (all)</option>
+        <option value="WEB">WEB only</option>
+        <option value="PRO">PRO only</option>
+      </select>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 12px">
+      <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">ACTIVE WITHIN</span>
+      <select id="yearFilter" size="1" onchange="applyYearFilter()" style="background:var(--bg3);border:1px solid var(--border2);color:var(--cyan);font-family:var(--mono);font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;cursor:pointer;outline:none;min-width:180px">
+        <option value="0" selected>All time (15.3M)</option>
+        <option value="1">1 Year (~1.5M active)</option>
+        <option value="3">3 Years (~3.1M active)</option>
+        <option value="6">6 Years (~5.5M active)</option>
+        <option value="10">10 Years (~6.9M active)</option>
+        <option value="15">10+ Years (~7.1M active)</option>
+      </select>
+      <span id="filterBadge" style="display:none;background:rgba(0,212,255,.15);border:1px solid var(--cyan);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:9px;color:var(--cyan)">FILTERED</span>
+    </div>
+    <div class="live-chip"><div class="dot-green"></div><span id="liveTs">loading…</span></div>
+  </div>
+</div>
+
 <!-- ── PAGE: OVERVIEW ─────────────────────────────────── -->
 <div class="page active" id="page-overview">
   <div class="topbar">
-    <div class="tb-left"><h2>Customer Intelligence</h2><p>KIRAN.TBL_CUSTOMER_PROFILE • live redshift • <span id="ts0">—</span></p></div>
-    <div style="display:flex;align-items:center;gap:10px">
-      <div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 12px">
-        <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">CUSTOMER TYPE</span>
-        <select id="custTypeFilter" size="1" onchange="applyCustTypeFilter()" style="background:var(--bg3);border:1px solid var(--border2);color:var(--cyan);font-family:var(--mono);font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;cursor:pointer;outline:none;min-width:120px">
-          <option value="WEB+PRO" selected>WEB+PRO (all)</option>
-          <option value="WEB">WEB only</option>
-          <option value="PRO">PRO only</option>
-        </select>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 12px">
-        <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">ACTIVE WITHIN</span>
-        <select id="yearFilter" size="1" onchange="applyYearFilter()" style="background:var(--bg3);border:1px solid var(--border2);color:var(--cyan);font-family:var(--mono);font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;cursor:pointer;outline:none;min-width:180px">
-          <option value="0" selected>All time (15.3M)</option>
-          <option value="1">1 Year (~1.5M active)</option>
-          <option value="3">3 Years (~3.1M active)</option>
-          <option value="6">6 Years (~5.5M active)</option>
-          <option value="10">10 Years (~6.9M active)</option>
-          <option value="15">10+ Years (~7.1M active)</option>
-        </select>
-        <span id="filterBadge" style="display:none;background:rgba(0,212,255,.15);border:1px solid var(--cyan);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:9px;color:var(--cyan)">FILTERED</span>
-      </div>
-      <div class="live-chip"><div class="dot-green"></div><span id="liveTs">loading…</span></div>
-    </div>
+    <div class="tb-left"><h2>Dashboard Overview</h2><p>KPIs · Segment Breakdown · Churn Trends · CLTV Distribution<span class="fctx"></span></p></div>
   </div>
 
   <div class="kpi-grid">
@@ -793,7 +815,7 @@ tbody td strong{color:var(--text)}
 <!-- ── PAGE: PIPELINE HEALTH ──────────────────────────── -->
 <div class="page" id="page-pipeline">
   <div class="topbar">
-    <div class="tb-left"><h2>Pipeline Health</h2><p>Step 1 → Step 2 → Step 3 run status, row counts, and data health</p></div>
+    <div class="tb-left"><h2>Pipeline Health</h2><p>Step 1 → Step 2 → Step 3 run status, row counts, and data health<span class="fctx"></span></p></div>
   </div>
 
   <div class="pipeline-row" id="pipeRow">
@@ -809,7 +831,7 @@ tbody td strong{color:var(--text)}
 <!-- ── PAGE: QC STATUS ─────────────────────────────────── -->
 <div class="page" id="page-qc">
   <div class="topbar">
-    <div class="tb-left"><h2>QC Status</h2><p>Data quality checks across all 3 scoring models — <span id="qcScore">—</span> checks total</p></div>
+    <div class="tb-left"><h2>QC Status</h2><p>Data quality checks across all 3 scoring models — <span id="qcScore">—</span> checks total<span class="fctx"></span></p></div>
   </div>
   <div class="qc-grid" id="qcGrid"><div class="spin"></div></div>
 </div>
@@ -817,7 +839,7 @@ tbody td strong{color:var(--text)}
 <!-- ── PAGE: SEGMENTS ─────────────────────────────────── -->
 <div class="page" id="page-segments">
   <div class="topbar">
-    <div class="tb-left"><h2>Segment Analysis</h2><p>All rfm_segment_v2 values with full metric breakdown</p></div>
+    <div class="tb-left"><h2>Segment Analysis</h2><p>All rfm_segment_v2 values with full metric breakdown<span class="fctx"></span></p></div>
   </div>
   <div class="tbl-card">
     <div class="tbl-hd"><h3>All Segments — click row to jump to sample records</h3></div>
@@ -839,7 +861,7 @@ tbody td strong{color:var(--text)}
 <!-- ── PAGE: PREDICTIONS ──────────────────────────────── -->
 <div class="page" id="page-predictions">
   <div class="topbar">
-    <div class="tb-left"><h2>Revenue Predictions</h2><p>Scenario modelling based on live segment data and conversion assumptions</p></div>
+    <div class="tb-left"><h2>Revenue Predictions</h2><p>Scenario modelling based on live segment data and conversion assumptions<span class="fctx"></span></p></div>
   </div>
   <div class="cc full" style="margin-bottom:16px">
     <div class="cc-hd"><div class="cc-title">Scenario Revenue Overview</div><div class="cc-sub">Predicted values across 8 campaign scenarios — hover for formula</div></div>
@@ -851,7 +873,7 @@ tbody td strong{color:var(--text)}
 <!-- ── PAGE: TOP CUSTOMERS ────────────────────────────── -->
 <div class="page" id="page-top">
   <div class="topbar">
-    <div class="tb-left"><h2 id="topCustomersTitle">Top 20 Customers</h2><p>ORDER BY cltv_adjusted_v2 DESC LIMIT 20 — full profile per customer</p></div>
+    <div class="tb-left"><h2 id="topCustomersTitle">Top 20 Customers</h2><p>ORDER BY cltv_adjusted_v2 DESC LIMIT 20 — full profile per customer<span class="fctx"></span></p></div>
     <a href="/api/download/Champions" class="dl-btn gold">⬇ Download Top 100</a>
   </div>
   <div class="tbl-card">
@@ -874,7 +896,7 @@ tbody td strong{color:var(--text)}
 <!-- ── PAGE: DATA LINEAGE ─────────────────────────────── -->
 <div class="page" id="page-lineage">
   <div class="topbar">
-    <div class="tb-left"><h2>Data Lineage</h2><p>Every column in TBL_CUSTOMER_PROFILE — source script, update mechanism, business meaning</p></div>
+    <div class="tb-left"><h2>Data Lineage</h2><p>Every column in TBL_CUSTOMER_PROFILE — source script, update mechanism, business meaning<span class="fctx"></span></p></div>
   </div>
 
   <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
@@ -895,7 +917,7 @@ tbody td strong{color:var(--text)}
 <!-- ── PAGE: RECORDS + DOWNLOAD ───────────────────────── -->
 <div class="page" id="page-samples">
   <div class="topbar">
-    <div class="tb-left"><h2>Sample Records + Download</h2><p>Select segment → preview 10 rows → download with PII (50/100/250/500)</p></div>
+    <div class="tb-left"><h2>Sample Records + Download</h2><p>Select segment → preview 10 rows → download with PII (50/100/250/500)<span class="fctx"></span></p></div>
   </div>
 
   <!-- Segment cards grid -->
@@ -946,7 +968,7 @@ tbody td strong{color:var(--text)}
 <div class="page" id="page-matrix">
   <div style="padding:0 0 18px;display:flex;align-items:baseline;gap:12px">
     <div style="font-size:17px;font-weight:700;color:var(--text)">CLTV vs Churn Risk Matrix</div>
-    <div style="font-family:var(--mono);font-size:10px;color:var(--text3)">segment priority grid · revenue at risk · action zones</div>
+    <div style="font-family:var(--mono);font-size:10px;color:var(--text3)">segment priority grid · revenue at risk · action zones<span class="fctx" id="matrixPageFilterLabel"></span></div>
   </div>
 <!-- LEGEND -->
   <div class="legend-row">
@@ -1265,6 +1287,21 @@ function sn(n){if(n==null)return'—';const v=Number(n);if(v>=1e6)return(v/1e6).
 async function api(u){const r=await fetch(u);return r.json();}
 
 // ── nav ──────────────────────────────────────────────────
+const PAGE_INFO={
+  overview:    {title:'Customer Intelligence',    sub:'KIRAN.TBL_CUSTOMER_PROFILE • live redshift • '},
+  pipeline:    {title:'Pipeline Health',          sub:'Step 1 → Step 2 → Step 3 run status'},
+  qc:          {title:'QC Status',               sub:'Data quality checks across all 3 scoring models'},
+  segments:    {title:'Segment Analysis',         sub:'All rfm_segment_v2 values with full metric breakdown'},
+  matrix:      {title:'Risk Matrix',              sub:'CLTV vs Churn segment priority grid'},
+  predictions: {title:'Revenue Predictions',     sub:'Scenario modelling based on live segment data'},
+  top:         {title:'Top Customers',            sub:'ORDER BY cltv_adjusted_v2 DESC LIMIT 20'},
+  lineage:     {title:'Data Lineage',             sub:'Every column in TBL_CUSTOMER_PROFILE'},
+  samples:     {title:'Sample Records + Download',sub:'Select segment → preview 10 rows → download'},
+};
+function updateGlobalBar(pg){
+  const info=PAGE_INFO[pg]||{title:'LP DataPlatform',sub:''};
+  const gt=$('gbTitle');if(gt)gt.textContent=info.title;
+}
 function nav(el){
   document.querySelectorAll('.sb-item').forEach(e=>e.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -1272,16 +1309,18 @@ function nav(el){
   const pg=el.dataset.page;
   _currentPage=pg;
   $('page-'+pg).classList.add('active');
-  if(pg==='pipeline' && !_pipeLoaded)loadPipeline();
-  if(pg==='qc'       && !_qcLoaded)buildQC();
-  if(pg==='top'      && !_topLoaded)loadTop();
-  if(pg==='lineage'  && !_linLoaded)buildLineage();
+  updateGlobalBar(pg);
+  if(pg==='pipeline'    && !_pipeLoaded)loadPipeline();
+  if(pg==='qc'          && !_qcLoaded)buildQC();
+  if(pg==='top'         && !_topLoaded)loadTop();
+  if(pg==='lineage'     && !_linLoaded)buildLineage();
   if(pg==='predictions' && !_predLoaded)loadPred();
-  if(pg==='actions'  && !_actLoaded)buildActions();
+  if(pg==='actions'     && !_actLoaded)buildActions();
+  if(pg==='matrix'      && !_matrixPageLoaded)loadMatrixPage();
   if(pg==='samples')buildSegCards();
 }
-let _pipeLoaded=false,_qcLoaded=false,_topLoaded=false,_linLoaded=false,_predLoaded=false,_actLoaded=false;
-let _currentPage='dashboard';
+let _pipeLoaded=false,_qcLoaded=false,_topLoaded=false,_linLoaded=false,_predLoaded=false,_actLoaded=false,_matrixPageLoaded=false;
+let _currentPage='overview';
 
 // ── charts ───────────────────────────────────────────────
 const CH={};
@@ -1302,10 +1341,12 @@ function applyYearFilter(){
   const b=$('filterBadge');
   if(_activeYears>0){b.style.display='inline';b.textContent=_activeYears+' YR';}
   else b.style.display='none';
+  updateFilterCtx();
   resetPageFlags();
   loadAll();
   if(_currentPage==='top')loadTop();
-  else if(_currentPage==='dashboard')loadMatrix();
+  else if(_currentPage==='matrix')loadMatrixPage();
+  else if(_currentPage==='predictions')loadPred();
 }
 
 function getFilterLabel(){
@@ -1314,15 +1355,26 @@ function getFilterLabel(){
   if(_activeYears>0)label+=' active within '+_activeYears+' year'+((_activeYears>1)?'s':'');
   return label.trim();
 }
+function updateFilterCtx(){
+  const filt=getFilterLabel();
+  const ctx=filt?' — '+filt:'';
+  document.querySelectorAll('.fctx').forEach(el=>el.textContent=ctx);
+  // update Top Customers h2 title
+  const tc=$('topCustomersTitle');
+  if(tc)tc.textContent='Top 20 Customers'+(filt?' of '+filt:'');
+}
 function resetPageFlags(){
-  _pipeLoaded=false;_qcLoaded=false;_topLoaded=false;_linLoaded=false;_predLoaded=false;_actLoaded=false;
+  _pipeLoaded=false;_qcLoaded=false;_topLoaded=false;_linLoaded=false;
+  _predLoaded=false;_actLoaded=false;_matrixPageLoaded=false;
 }
 function applyCustTypeFilter(){
   _custType=$('custTypeFilter').value||'WEB+PRO';
+  updateFilterCtx();
   resetPageFlags();
   loadAll();
   if(_currentPage==='top')loadTop();
-  else if(_currentPage==='dashboard')loadMatrix();
+  else if(_currentPage==='matrix')loadMatrixPage();
+  else if(_currentPage==='predictions')loadPred();
 }
 
 let _sum={},_segs=[],_churn=[],_cltv=[],_eng=[];
@@ -1364,6 +1416,126 @@ async function loadMatrix(){
     return '<tr style="background:'+bg(cp)+'">'+'<td><span style="display:inline-flex;align-items:center;gap:8px"><span style="width:11px;height:11px;border-radius:50%;background:'+r.dot_color+';flex-shrink:0;display:inline-block"></span><strong style="color:var(--text)">'+r.cltv_segment+' + '+r.churn_segment+'</strong></span></td>'+'<td style="font-family:var(--mono)">'+Number(r.customers||0).toLocaleString()+'</td>'+'<td style="font-family:var(--mono);color:var(--cyan);font-weight:600">'+fB(r.avg_cltv)+'</td>'+'<td style="font-family:var(--mono)">'+fB(r.total_cltv)+'</td>'+'<td><span style="font-family:var(--mono);font-weight:700;font-size:12px;color:'+cl(cp)+';background:'+bg(cp)+';padding:2px 9px;border-radius:4px">'+cp.toFixed(0)+'%</span></td>'+'<td style="font-family:var(--mono);color:#f59e0b">'+fB(r.revenue_at_risk)+'</td>'+'<td>'+ph+'</td>'+'<td style="color:var(--text2);font-size:11px">'+r.action+'</td></tr>';
   }).join('');
 }
+// ── Risk Matrix visual page (dynamic, filter-aware) ───────
+async function loadMatrixPage(){
+  _matrixPageLoaded=true;
+  // update filter label in matrix page header
+  const lbl=$('matrixPageFilterLabel');
+  if(lbl){const fltr=getFilterLabel();lbl.textContent=fltr?' — '+fltr:'';}
+  const q=combineQ();
+  let rows;
+  try{rows=await api('/api/cltv_churn_matrix'+q);}
+  catch(e){console.error('loadMatrixPage error',e);return;}
+  if(!rows||!rows.length)return;
+
+  // Map segment names → grid position
+  const CLTV_ROW={'Platinum':0,'Gold':1,'Silver':2,'Bronze':3,'Dormant':3};
+  const CHURN_COL={'Healthy':0,'Low Risk':1,'Medium Risk':2,'High Risk':3};
+  // API returns uppercase: URGENT, HIGH, MONITOR, LOW
+  const PMAP={
+    'URGENT':'urgent','Urgent':'urgent',
+    'HIGH':'critical','Critical':'critical',
+    'MONITOR':'monitor','Monitor':'monitor',
+    'LOW':'low','Low':'low','Low Priority':'low',
+    'Protect':'protect','Protect Value':'protect','PROTECT':'protect'
+  };
+  const TIER_MAP={'Platinum':'platinum','Gold':'gold','Silver':'silver','Bronze':'bronze','Dormant':'dormant'};
+
+  const total=rows.reduce((s,r)=>s+(Number(r.customers)||0),0);
+  const PRANK={urgent:4,critical:3,monitor:2,low:1,protect:0};
+
+  // Build 4×4 cell data — Bronze+Dormant share row 3; accumulate counts, keep highest priority
+  const grid16=Array(16).fill(null);
+  rows.forEach(r=>{
+    const row=CLTV_ROW[r.cltv_segment];
+    const col=CHURN_COL[r.churn_segment];
+    if(row==null||col==null)return;
+    const idx=row*4+col;
+    const tier=TIER_MAP[r.cltv_segment]||'dormant';
+    const priorityKey=PMAP[r.priority]||'low';
+    const count=Number(r.customers)||0;
+    if(grid16[idx]){
+      // merge: accumulate customers, keep highest-priority label & action
+      const existing=grid16[idx];
+      const mergedCount=existing.count+count;
+      const higherPriority=(PRANK[priorityKey]||0)>(PRANK[existing.priority]||0)?priorityKey:existing.priority;
+      const higherAction=(PRANK[priorityKey]||0)>(PRANK[existing.priority]||0)?r.action||'—':existing.action;
+      grid16[idx]={priority:higherPriority,action:higherAction,
+        segments:[...existing.segments,{name:r.cltv_segment+' + '+r.churn_segment,tier}],count:mergedCount,pct:''};
+    }else{
+      grid16[idx]={priority:priorityKey,action:r.action||'—',
+        segments:[{name:r.cltv_segment+' + '+r.churn_segment,tier}],count,pct:''};
+    }
+  });
+  // compute pct after all merges
+  grid16.forEach(c=>{if(c)c.pct=total>0?((c.count/total)*100).toFixed(1)+'%':'0%';});
+
+  // Rebuild grid DOM
+  const gridEl=$('matrix');
+  if(!gridEl)return;
+  gridEl.innerHTML='';
+  grid16.forEach((cell,i)=>{
+    const el=document.createElement('div');
+    if(!cell){
+      el.className='cell';
+      el.style.cssText='background:transparent;border:1px dashed rgba(255,255,255,.05);pointer-events:none';
+      gridEl.appendChild(el);return;
+    }
+    const pc=PCONF[cell.priority]||PCONF.low;
+    el.className=`cell ${pc.cls}`;
+    const dots=cell.segments.map(s=>`<div class="sdot" style="background:${TIER_COLOR[s.tier]||'#555'}"></div>`).join('');
+    el.innerHTML=`
+      <div class="cell-top">
+        <span class="priority-badge ${pc.badge}">${pc.label}</span>
+        <div class="segment-dots">${dots}</div>
+      </div>
+      <div class="count" style="font-size:2.8rem;font-weight:900;line-height:1.1;color:#fff;white-space:nowrap">${cell.count.toLocaleString()}</div>
+      <div class="count-label">customers · ${cell.pct}</div>`;
+    const row=Math.floor(i/4),col=i%4;
+    const tip=$('tooltip');
+    el.addEventListener('mouseenter',()=>{
+      if(!tip)return;
+      tip.className='tooltip visible';
+      tip.innerHTML=`
+        <div class="tt-title">${cell.segments.map(s=>s.name).join(' / ')}</div>
+        <div class="tt-row"><span>Priority</span><span style="color:${pc.color}">${pc.label}</span></div>
+        <div class="tt-row"><span>Action</span><span>${cell.action}</span></div>
+        <div class="tt-row"><span>Customers</span><span>${cell.count.toLocaleString()}</span></div>
+        <div class="tt-row"><span>Share</span><span>${cell.pct}</span></div>
+        <div class="tt-row"><span>CLTV Band</span><span>${CLTV_BANDS[row]}</span></div>
+        <div class="tt-row"><span>Churn Band</span><span>${CHURN_BANDS[col]}</span></div>`;
+      const rect=el.getBoundingClientRect();
+      let x=rect.right+12,y=rect.top;
+      if(x+280>window.innerWidth)x=rect.left-292;
+      if(y+220>window.innerHeight)y=window.innerHeight-240;
+      tip.style.left=x+'px';tip.style.top=y+'px';
+    });
+    el.addEventListener('mouseleave',()=>{if(tip)tip.className='tooltip';});
+    gridEl.appendChild(el);
+  });
+
+  // Rebuild stats row
+  const statsEl=$('stats');
+  if(!statsEl)return;
+  const groups={urgent:[],critical:[],monitor:[],low:[],protect:[]};
+  grid16.forEach(c=>{if(c&&groups[c.priority])groups[c.priority].push(c.count);});
+  const sumArr=arr=>arr.reduce((a,b)=>a+b,0);
+  statsEl.innerHTML='';
+  [{key:'urgent',label:'Urgent',action:'Immediate action',sc:'sc-urgent',color:'#ff3b55'},
+   {key:'critical',label:'Critical',action:'VIP retention',sc:'sc-critical',color:'#ff7142'},
+   {key:'monitor',label:'Monitor',action:'Track & engage',sc:'sc-monitor',color:'#f5c842'},
+   {key:'low',label:'Low',action:'Automate nurture',sc:'sc-low',color:'#5a7fa8'},
+   {key:'protect',label:'Protect',action:'Preserve value',sc:'sc-protect',color:'#3ddc84'}
+  ].forEach(d=>{
+    const n=sumArr(groups[d.key]||[]);
+    const pct=total>0?((n/total)*100).toFixed(1):'0';
+    const card=document.createElement('div');
+    card.className=`stat-card ${d.sc}`;
+    card.innerHTML=`<div class="stat-label">${d.label}</div><div class="stat-num" style="color:${d.color}">${n.toLocaleString()}</div><div class="stat-sub">${pct}% of base<br>${d.action}</div>`;
+    statsEl.appendChild(card);
+  });
+}
+
 function exportMatrix(){ window.location='/api/cltv_churn_matrix/export'+(yrQ()||'?years=0'); }
 function exportMatrixRow(cltvSeg, churnSeg){
   const q=yrQ();
@@ -1742,11 +1914,7 @@ async function loadPred(){
 // ── top 20 ────────────────────────────────────────────────
 async function loadTop(){
   _topLoaded=true;
-  const title=$('topCustomersTitle');
-  if(title){
-    const filt=getFilterLabel();
-    title.textContent='Top 20 Customers'+(filt?' of '+filt:'');
-  }
+  updateFilterCtx();
   const q=combineQ();
   const rows=await api('/api/top_customers'+q);
   const CC={'High Risk':'#ef4444','Medium Risk':'#f59e0b','Low Risk':'#22c55e','Healthy':'#00d4ff'};

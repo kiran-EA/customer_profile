@@ -21,11 +21,11 @@ if __name__ == "__main__":
     # Load environment variables from .env file if it exists
     env_file = os.path.join(os.path.dirname(__file__), '.env')
     if os.path.exists(env_file):
-        print("📝 Loading environment variables from .env file...")
+        print("  Loading environment variables from .env file...")
         from dotenv import load_dotenv
         load_dotenv(env_file)
     else:
-        print("⚠️  No .env file found. Copy .env.example to .env and configure.")
+        print("  No .env file found — using mock data / env defaults.")
     
     app.run(
         debug=True,
