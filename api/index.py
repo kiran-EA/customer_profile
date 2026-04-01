@@ -79,6 +79,16 @@ def qdf(sql):
     finally:
         cleanup_connection(conn)
 
+def get_cust_type_filter(cust_type):
+    """Build WHERE clause fragment for customer type filter"""
+    if cust_type == 'WEB':
+        return " AND (CUST_TYPE NOT LIKE '%PRO%' OR CUST_TYPE IS NULL)"
+    elif cust_type == 'PRO':
+        return " AND CUST_TYPE LIKE '%PRO%'"
+    else:  # WEB+PRO or None
+        return ""
+
+
 def get_mock_data(sql):
     """Return mock data for local development"""
     import pandas as pd
@@ -345,6 +355,7 @@ def health_check():
 @app.route("/api/summary")
 def api_summary():
     wh = date_where(request.args.get("years","0"))
+    cust_type_filter = get_cust_type_filter(request.args.get("cust_type", "WEB+PRO"))
     df = qdf(f"""
         SELECT
             COUNT(*)                                                           AS total,
@@ -367,7 +378,7 @@ def api_summary():
             MAX(update_date)                                                   AS last_refresh,
             MAX(churn_scored_date)                                             AS churn_scored
         FROM {TABLE}
-        WHERE {wh}
+        WHERE {wh}{cust_type_filter}
     """)
     return jsonify(df.iloc[0].to_dict())
 
@@ -400,6 +411,7 @@ def api_pipeline():
 @app.route("/api/segments")
 def api_segments():
     wh = date_where(request.args.get("years","0"))
+    cust_type_filter = get_cust_type_filter(request.args.get("cust_type", "WEB+PRO"))
     df = qdf(f"""
         SELECT rfm_segment_v2 AS segment,
                COUNT(*)                                              AS customers,
@@ -414,7 +426,7 @@ def api_segments():
                ROUND(AVG(email_engagement_rate),3)                   AS email_rate,
                ROUND(AVG(engagement_multiplier),2)                   AS eng_mult
         FROM {TABLE}
-        WHERE {wh} AND rfm_segment_v2 IS NOT NULL
+        WHERE {wh}{cust_type_filter} AND rfm_segment_v2 IS NOT NULL
         GROUP BY rfm_segment_v2
     """)
     
@@ -451,13 +463,14 @@ def api_segments():
 @app.route("/api/cltv_distribution")
 def api_cltv_dist():
     wh = date_where(request.args.get("years","0"))
+    cust_type_filter = get_cust_type_filter(request.args.get("cust_type", "WEB+PRO"))
     df = qdf(f"""
         SELECT cltv_segment AS tier,
                COUNT(*) AS customers,
                ROUND(AVG(cltv_adjusted_v2),2) AS avg_value,
                ROUND(SUM(cltv_adjusted_v2),0) AS total_value
         FROM {TABLE}
-        WHERE {wh} AND cltv_segment IS NOT NULL
+        WHERE {wh}{cust_type_filter} AND cltv_segment IS NOT NULL
         GROUP BY cltv_segment
     """)
     
@@ -477,13 +490,14 @@ def api_cltv_dist():
 @app.route("/api/churn_distribution")
 def api_churn_dist():
     wh = date_where(request.args.get("years","0"))
+    cust_type_filter = get_cust_type_filter(request.args.get("cust_type", "WEB+PRO"))
     df = qdf(f"""
         SELECT churn_segment AS risk_level,
                COUNT(*) AS customers,
                ROUND(AVG(churn_probability),3) AS avg_probability,
                ROUND(SUM(cltv_adjusted_v2),0) AS value_at_risk
         FROM {TABLE}
-        WHERE {wh} AND churn_segment IS NOT NULL
+        WHERE {wh}{cust_type_filter} AND churn_segment IS NOT NULL
         GROUP BY churn_segment
     """)
     
@@ -503,13 +517,14 @@ def api_churn_dist():
 @app.route("/api/engagement_distribution")
 def api_engagement_dist():
     wh = date_where(request.args.get("years","0"))
+    cust_type_filter = get_cust_type_filter(request.args.get("cust_type", "WEB+PRO"))
     df = qdf(f"""
         SELECT churn_browse_signal AS level,
                COUNT(*) AS customers,
                ROUND(AVG(browse_conversion_score),3) AS avg_browse_score,
                ROUND(AVG(email_engagement_rate),3) AS avg_email_rate
         FROM {TABLE}
-        WHERE {wh} AND churn_browse_signal IS NOT NULL
+        WHERE {wh}{cust_type_filter} AND churn_browse_signal IS NOT NULL
         GROUP BY churn_browse_signal
     """)
     
@@ -526,6 +541,7 @@ def api_engagement_dist():
 @app.route("/api/top_customers")
 def api_top_customers():
     wh = date_where(request.args.get("years","0"))
+    cust_type_filter = get_cust_type_filter(request.args.get("cust_type", "WEB+PRO"))
     df = qdf(f"""
         SELECT 
             master_customer_id,
@@ -546,7 +562,7 @@ def api_top_customers():
             CAST(latest_active_date AS VARCHAR) AS latest_active_date,
             churn_model_version
         FROM {TABLE}
-        WHERE {wh} AND cltv_adjusted_v2 IS NOT NULL
+        WHERE {wh}{cust_type_filter} AND cltv_adjusted_v2 IS NOT NULL
         ORDER BY cltv_adjusted_v2 DESC
         LIMIT 20
     """)
@@ -699,6 +715,7 @@ def api_engagement_alias():
 def api_cltv_churn_matrix():
     """CLTV vs Churn risk matrix"""
     wh = date_where(request.args.get("years","0"))
+    cust_type_filter = get_cust_type_filter(request.args.get("cust_type", "WEB+PRO"))
     df = qdf(f"""
         SELECT 
             cltv_segment,
@@ -707,7 +724,7 @@ def api_cltv_churn_matrix():
             ROUND(AVG(churn_probability),3) AS avg_churn_prob,
             ROUND(SUM(cltv_adjusted_v2),0) AS total_cltv_value
         FROM {TABLE}
-        WHERE {wh} AND cltv_segment IS NOT NULL AND churn_segment IS NOT NULL
+        WHERE {wh}{cust_type_filter} AND cltv_segment IS NOT NULL AND churn_segment IS NOT NULL
         GROUP BY cltv_segment, churn_segment
         ORDER BY cltv_segment, churn_segment
     """)

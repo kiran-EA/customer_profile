@@ -726,6 +726,14 @@ tbody td strong{color:var(--text)}
     <div class="tb-left"><h2>Customer Intelligence</h2><p>KIRAN.TBL_CUSTOMER_PROFILE • live redshift • <span id="ts0">—</span></p></div>
     <div style="display:flex;align-items:center;gap:10px">
       <div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 12px">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">CUSTOMER TYPE</span>
+        <select id="custTypeFilter" size="1" onchange="applyCustTypeFilter()" style="background:var(--bg3);border:1px solid var(--border2);color:var(--cyan);font-family:var(--mono);font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;cursor:pointer;outline:none;min-width:120px">
+          <option value="WEB+PRO" selected>WEB+PRO (all)</option>
+          <option value="WEB">WEB only</option>
+          <option value="PRO">PRO only</option>
+        </select>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 12px">
         <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">ACTIVE WITHIN</span>
         <select id="yearFilter" size="1" onchange="applyYearFilter()" style="background:var(--bg3);border:1px solid var(--border2);color:var(--cyan);font-family:var(--mono);font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;cursor:pointer;outline:none;min-width:180px">
           <option value="0" selected>All time (15.3M)</option>
@@ -843,7 +851,7 @@ tbody td strong{color:var(--text)}
 <!-- ── PAGE: TOP CUSTOMERS ────────────────────────────── -->
 <div class="page" id="page-top">
   <div class="topbar">
-    <div class="tb-left"><h2>Top 20 Customers</h2><p>ORDER BY cltv_adjusted_v2 DESC LIMIT 20 — full profile per customer</p></div>
+    <div class="tb-left"><h2 id="topCustomersTitle">Top 20 Customers</h2><p>ORDER BY cltv_adjusted_v2 DESC LIMIT 20 — full profile per customer</p></div>
     <a href="/api/download/Champions" class="dl-btn gold">⬇ Download Top 100</a>
   </div>
   <div class="tbl-card">
@@ -1262,6 +1270,7 @@ function nav(el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   el.classList.add('active');
   const pg=el.dataset.page;
+  _currentPage=pg;
   $('page-'+pg).classList.add('active');
   if(pg==='pipeline' && !_pipeLoaded)loadPipeline();
   if(pg==='qc'       && !_qcLoaded)buildQC();
@@ -1272,6 +1281,7 @@ function nav(el){
   if(pg==='samples')buildSegCards();
 }
 let _pipeLoaded=false,_qcLoaded=false,_topLoaded=false,_linLoaded=false,_predLoaded=false,_actLoaded=false;
+let _currentPage='dashboard';
 
 // ── charts ───────────────────────────────────────────────
 const CH={};
@@ -1281,13 +1291,38 @@ const TF=f=>({color:'#8b949e',font:{size:10,family:'JetBrains Mono'},...f});
 
 // ── load all ─────────────────────────────────────────────
 let _activeYears=0;
-function yrQ(){ return _activeYears>0?'?years='+_activeYears:''; }
+let _custType='WEB+PRO';
+
+function yrQ(){ return _activeYears>0?'?years='+_activeYears:'?years=0'; }
+function custTypeQ(){ return _custType && _custType!=='WEB+PRO'?'&cust_type='+_custType:''; }
+function combineQ(){ return yrQ()+custTypeQ(); }
+
 function applyYearFilter(){
   _activeYears=parseInt($('yearFilter').value)||0;
   const b=$('filterBadge');
   if(_activeYears>0){b.style.display='inline';b.textContent=_activeYears+' YR';}
   else b.style.display='none';
+  resetPageFlags();
   loadAll();
+  if(_currentPage==='top')loadTop();
+  else if(_currentPage==='dashboard')loadMatrix();
+}
+
+function getFilterLabel(){
+  let label='';
+  if(_custType && _custType!=='WEB+PRO')label+=' '+_custType;
+  if(_activeYears>0)label+=' active within '+_activeYears+' year'+((_activeYears>1)?'s':'');
+  return label.trim();
+}
+function resetPageFlags(){
+  _pipeLoaded=false;_qcLoaded=false;_topLoaded=false;_linLoaded=false;_predLoaded=false;_actLoaded=false;
+}
+function applyCustTypeFilter(){
+  _custType=$('custTypeFilter').value||'WEB+PRO';
+  resetPageFlags();
+  loadAll();
+  if(_currentPage==='top')loadTop();
+  else if(_currentPage==='dashboard')loadMatrix();
 }
 
 let _sum={},_segs=[],_churn=[],_cltv=[],_eng=[];
@@ -1295,7 +1330,7 @@ let _sum={},_segs=[],_churn=[],_cltv=[],_eng=[];
 async function loadAll(){
   $('sbTs').textContent='refreshing…';
   try{
-    const q=yrQ();
+    const q=combineQ();
     const[sum,segs,churn,cltv,eng]=await Promise.all([
       api('/api/summary'+q),api('/api/segments'+q),api('/api/churn'+q),
       api('/api/cltv'+q),api('/api/engagement'+q)
@@ -1310,9 +1345,12 @@ async function loadAll(){
 }
 
 async function loadMatrix(){
-  const q=yrQ();
+  const q=combineQ();
   const lbl=$('matrixFilterLabel');
-  if(lbl)lbl.textContent=_activeYears>0?'last '+_activeYears+' years':'';
+  if(lbl){
+    const fltr=getFilterLabel();
+    lbl.textContent=fltr?' - '+fltr:'';
+  }
   let rows;
   try{rows=await api('/api/cltv_churn_matrix'+(q||'?'));}
   catch(e){$('matrixBody').innerHTML='<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--red);font-family:var(--mono)">error</td></tr>';return;}
@@ -1704,7 +1742,13 @@ async function loadPred(){
 // ── top 20 ────────────────────────────────────────────────
 async function loadTop(){
   _topLoaded=true;
-  const rows=await api('/api/top_customers');
+  const title=$('topCustomersTitle');
+  if(title){
+    const filt=getFilterLabel();
+    title.textContent='Top 20 Customers'+(filt?' of '+filt:'');
+  }
+  const q=combineQ();
+  const rows=await api('/api/top_customers'+q);
   const CC={'High Risk':'#ef4444','Medium Risk':'#f59e0b','Low Risk':'#22c55e','Healthy':'#00d4ff'};
   const TC={'Platinum':'#00d4ff','Gold':'#f59e0b','Silver':'#6b7280','Bronze':'#78350f','Dormant':'#374151'};
   const EC={Active:'#22c55e',Warm:'#84cc16',Cool:'#3b82f6',Cold:'#f59e0b',Dark:'#6b7280',NoData:'#374151'};
