@@ -537,14 +537,13 @@ tbody td strong{color:var(--text)}
   }
 #page-matrix .count {
     font-family: 'Syne', sans-serif;
-    font-size: clamp(26px, 2.8vw, 42px);
-    font-weight: 800;
+    font-size: clamp(32px, 3.2vw, 48px);
+    font-weight: 900;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow: visible;
     max-width: 100%;
-    line-height: 1;
-    letter-spacing: -0.03em;
+    line-height: 1.1;
+    letter-spacing: -0.04em;
     color: #fff;
   }
 #page-matrix .count-label {
@@ -555,6 +554,7 @@ tbody td strong{color:var(--text)}
     margin-top: -4px;
   }
 #page-matrix .action-text {
+    display: none;
     font-size: 12px;
     font-weight: 700;
     color: var(--text);
@@ -565,7 +565,7 @@ tbody td strong{color:var(--text)}
     margin-top: 4px;
   }
 #page-matrix .segments-list {
-    display: flex;
+    display: none;
     flex-wrap: wrap;
     gap: 3px;
     margin-top: 4px;
@@ -595,16 +595,17 @@ tbody td strong{color:var(--text)}
 #page-matrix .tooltip {
     display: none;
     position: fixed;
-    z-index: 9999;
+    z-index: 99999;
     background: #141824;
-    border: 1px solid rgba(255,255,255,0.15);
+    border: 2px solid #00d4ff;
     border-radius: 10px;
     padding: 18px 20px;
     min-width: 280px;
+    max-width: 320px;
     pointer-events: none;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.9), inset 0 0 20px rgba(0,212,255,0.1);
   }
-#page-matrix .tooltip.visible { display: block; }
+#page-matrix .tooltip.visible { display: block !important; }
 #page-matrix .tt-title {
     font-family: 'Syne', sans-serif;
     font-size: 15px;
@@ -622,9 +623,10 @@ tbody td strong{color:var(--text)}
     color: #8b94b0;
     margin-bottom: 7px;
     font-family: 'JetBrains Mono', monospace;
+    word-break: break-word;
   }
-#page-matrix .tt-row span:last-child { color: #e8eaf0; font-weight: 600; }
-#page-matrix .tt-row span:last-child { color: var(--text); }
+#page-matrix .tt-row span:first-child { flex-shrink: 0; margin-right: 8px; }
+#page-matrix .tt-row span:last-child { color: var(--text); text-align: right; flex-shrink: 0; }
 #page-matrix .stats-row {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
@@ -766,9 +768,8 @@ tbody td strong{color:var(--text)}
   <div class="tbl-card" style="margin-bottom:16px">
     <div style="background:var(--bg3);border-bottom:1px solid var(--border);padding:12px 18px;border-radius:10px 10px 0 0;display:flex;align-items:center;justify-content:space-between">
       <div style="display:flex;align-items:center;gap:10px"><span style="font-size:13px;font-weight:600;color:var(--text)">📊 CLTV vs Churn Risk — Detailed Segment Analysis</span><span style="font-family:var(--mono);font-size:10px;color:var(--text3)" id="matrixFilterLabel"></span></div>
-      <button onclick="exportMatrix()" style="background:var(--bg4);border:1px solid var(--border2);color:var(--cyan);font-family:var(--mono);font-size:10px;padding:5px 12px;border-radius:6px;cursor:pointer">⬇ Export CSV</button>
     </div>
-    <div style="overflow-x:auto"><table class="dt" id="matrixTbl"><thead><tr><th>SEGMENT</th><th>CUSTOMER COUNT</th><th>AVG CLTV</th><th>TOTAL CLTV VALUE</th><th>CHURN RISK</th><th>REVENUE AT RISK</th><th>PRIORITY</th><th>ACTION REQUIRED</th><th>EXPORT</th></tr></thead><tbody id="matrixBody"><tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3);font-family:var(--mono);font-size:11px">loading…</td></tr></tbody></table></div>
+    <div style="overflow-x:auto"><table class="dt" id="matrixTbl"><thead><tr><th>SEGMENT</th><th>CUSTOMER COUNT</th><th>AVG CLTV</th><th>TOTAL CLTV VALUE</th><th>CHURN RISK</th><th>REVENUE AT RISK</th><th>PRIORITY</th><th>ACTION REQUIRED</th></tr></thead><tbody id="matrixBody"><tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3);font-family:var(--mono);font-size:11px">loading…</td></tr></tbody></table></div>
   </div>
 
   <div class="tbl-card" style="margin-bottom:16px">
@@ -895,19 +896,11 @@ tbody td strong{color:var(--text)}
   <!-- Download panel — always visible once segment selected -->
   <div id="dlPanel" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-        <span style="font-family:var(--mono);font-size:11px;color:var(--text2)">Download segment:</span>
+      <div style="display:none;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
         <span id="dlSegLabel" style="font-size:13px;font-weight:600;color:var(--cyan)">—</span>
         <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">records:</span>
-        <div style="display:flex;gap:6px" id="cntBtns">
-          <button class="cnt-btn active" data-n="50"  onclick="setCnt(this)">50</button>
-          <button class="cnt-btn"        data-n="100" onclick="setCnt(this)">100</button>
-          <button class="cnt-btn"        data-n="250" onclick="setCnt(this)">250</button>
-          <button class="cnt-btn"        data-n="500" onclick="setCnt(this)">500</button>
-        </div>
-        <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">includes PII:</span>
-        <span style="font-family:var(--mono);font-size:10px;color:var(--green)">email · phone · name · address</span>
-      </div>
+        
+          </div>
       <button class="dl-btn gold" onclick="doDownload()" style="flex-shrink:0">
         ⬇ &nbsp;Download CSV
       </button>
@@ -1183,14 +1176,12 @@ cells.forEach((cell, i) => {
       <span class="priority-badge ${pc.badge}">${pc.label}</span>
       <div class="segment-dots">${dots}</div>
     </div>
-    <div class="count">${cell.count.toLocaleString()}</div>
+    <div class="count" style="font-size:2.8rem;font-weight:900;line-height:1.1;color:#fff;white-space:nowrap">${cell.count.toLocaleString()}</div>
     <div class="count-label">customers · ${cell.pct}</div>
-    <div class="action-text">${cell.action}</div>
-    <div class="segments-list">${tags}</div>
   `;
 
   // Tooltip
-  el.addEventListener('mousemove', e => {
+  el.addEventListener('mouseenter', e => {
     tooltip.className = 'tooltip visible';
     tooltip.innerHTML = `
       <div class="tt-title">${cell.segments.map(s=>s.name).join(' / ')}</div>
@@ -1202,10 +1193,11 @@ cells.forEach((cell, i) => {
       <div class="tt-row"><span>Churn Band</span><span>${CHURN_BANDS[col]}</span></div>
       <div style="margin-top:10px;font-size:10px;color:#7a8099;line-height:1.5">${cell.note}</div>
     `;
+    const rect = el.getBoundingClientRect();
     const tw = 280, th = 220;
-    let x = e.clientX + 16, y = e.clientY + 16;
-    if (x + tw > window.innerWidth)  x = e.clientX - tw - 8;
-    if (y + th > window.innerHeight) y = e.clientY - th - 8;
+    let x = rect.right + 12, y = rect.top;
+    if (x + tw > window.innerWidth)  x = rect.left - tw - 12;
+    if (y + th > window.innerHeight) y = window.innerHeight - th - 20;
     tooltip.style.left = x + 'px';
     tooltip.style.top  = y + 'px';
   });
@@ -1331,8 +1323,7 @@ async function loadMatrix(){
   $('matrixBody').innerHTML=rows.map(r=>{
     const cp=parseFloat(r.churn_pct||0);
     const ph=r.priority==='URGENT'?'<span style="background:#b91c1c;color:#fff;font-weight:700;padding:2px 8px;border-radius:4px;font-family:var(--mono);font-size:10px">URGENT</span>':'<span style="color:'+r.priority_color+';font-weight:600;font-family:var(--mono);font-size:11px">'+r.priority+'</span>';
-    return '<tr style="background:'+bg(cp)+'">'+'<td><span style="display:inline-flex;align-items:center;gap:8px"><span style="width:11px;height:11px;border-radius:50%;background:'+r.dot_color+';flex-shrink:0;display:inline-block"></span><strong style="color:var(--text)">'+r.cltv_segment+' + '+r.churn_segment+'</strong></span></td>'+'<td style="font-family:var(--mono)">'+Number(r.customers||0).toLocaleString()+'</td>'+'<td style="font-family:var(--mono);color:var(--cyan);font-weight:600">'+fB(r.avg_cltv)+'</td>'+'<td style="font-family:var(--mono)">'+fB(r.total_cltv)+'</td>'+'<td><span style="font-family:var(--mono);font-weight:700;font-size:12px;color:'+cl(cp)+';background:'+bg(cp)+';padding:2px 9px;border-radius:4px">'+cp.toFixed(0)+'%</span></td>'+'<td style="font-family:var(--mono);color:#f59e0b">'+fB(r.revenue_at_risk)+'</td>'+'<td>'+ph+'</td>'+'<td style="color:var(--text2);font-size:11px">'+r.action+'</td>'
-      +'<td><button onclick="exportMatrixRow(\''+(r.cltv_segment||'')+'\',\''+(r.churn_segment||'')+'\')" style="background:var(--bg3);border:1px solid var(--border2);color:var(--cyan);font-family:var(--mono);font-size:9px;padding:3px 9px;border-radius:4px;cursor:pointer;white-space:nowrap" onmouseover="this.style.borderColor=\'var(--cyan)\'" onmouseout="this.style.borderColor=\'var(--border2)\'">\u2b07 100 PII</button></td></tr>';
+    return '<tr style="background:'+bg(cp)+'">'+'<td><span style="display:inline-flex;align-items:center;gap:8px"><span style="width:11px;height:11px;border-radius:50%;background:'+r.dot_color+';flex-shrink:0;display:inline-block"></span><strong style="color:var(--text)">'+r.cltv_segment+' + '+r.churn_segment+'</strong></span></td>'+'<td style="font-family:var(--mono)">'+Number(r.customers||0).toLocaleString()+'</td>'+'<td style="font-family:var(--mono);color:var(--cyan);font-weight:600">'+fB(r.avg_cltv)+'</td>'+'<td style="font-family:var(--mono)">'+fB(r.total_cltv)+'</td>'+'<td><span style="font-family:var(--mono);font-weight:700;font-size:12px;color:'+cl(cp)+';background:'+bg(cp)+';padding:2px 9px;border-radius:4px">'+cp.toFixed(0)+'%</span></td>'+'<td style="font-family:var(--mono);color:#f59e0b">'+fB(r.revenue_at_risk)+'</td>'+'<td>'+ph+'</td>'+'<td style="color:var(--text2);font-size:11px">'+r.action+'</td></tr>';
   }).join('');
 }
 function exportMatrix(){ window.location='/api/cltv_churn_matrix/export'+(yrQ()||'?years=0'); }
@@ -1371,15 +1362,16 @@ function buildMainCharts(segs,churn,cltv,eng){
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` $${Number(c.parsed.x).toFixed(2)}`}}},
     scales:{x:{grid:{color:GRID},ticks:TF()},y:{grid:{display:false},ticks:TF()}}}});
 
+  const churnTotal = churn.reduce((sum,c)=>sum+(c.customers||0),0);
   mkC('cChurnPie',{type:'pie',data:{
-    labels:churn.map(c=>`${c.churn_segment} (${c.pct}%)`),
+    labels:churn.map(c=>`${c.segment} (${churnTotal>0?(((c.customers||0)/churnTotal)*100).toFixed(0):0}%)`),
     datasets:[{data:churn.map(c=>c.customers),backgroundColor:churn.map(c=>c.color||'#555'),borderWidth:2,borderColor:'#161b22',hoverOffset:8}]
   },options:{responsive:true,maintainAspectRatio:false,
     plugins:{legend:{position:'right',labels:{color:'#8b949e',font:{size:10,family:'JetBrains Mono'},boxWidth:10}}}}});
 
   // ── Quadrant Scatter: CLTV vs Churn ─────────────────────
-  const scatterData = segs.filter(s=>s.customers>100).map(s=>({
-    x: parseFloat((s.avg_churn_prob||0)*100),
+  const scatterData = segs.filter(s=>s.customers>50).map(s=>({
+    x: parseFloat((s.churn_prob||0)*100),
     y: parseFloat(s.avg_cltv||0),
     r: Math.max(5, Math.min(22, Math.sqrt(s.customers/600))),
     label: s.segment, color: s.color||'#555', count: s.customers
@@ -1482,7 +1474,7 @@ function buildMainCharts(segs,churn,cltv,eng){
 
   // Cross-metric table
   $('crossBody').innerHTML=[...segs].sort((a,b)=>b.customers-a.customers).map(s=>{
-    const cp=(s.avg_churn_prob||0)*100,hr=s.customers>0?((s.high_risk_count||0)/s.customers*100):0;
+    const cp=(s.churn_prob||0)*100,hr=(s.pct||0);
     const cc=cp>50?'#ef4444':cp>25?'#f59e0b':'#22c55e',hc=hr>30?'#ef4444':hr>15?'#f59e0b':'#22c55e';
     return '<tr><td><span class="seg-chip" style="background:'+(s.color||'#555')+'">'
       +(s.emoji||'')+' '+(s.segment||'')+'</span></td>'
@@ -1490,9 +1482,9 @@ function buildMainCharts(segs,churn,cltv,eng){
       +'<td style="font-family:var(--mono);color:var(--cyan);font-weight:600">$'+parseFloat(s.avg_cltv||0).toFixed(0)+'</td>'
       +'<td style="font-family:var(--mono);color:'+cc+'">'+cp.toFixed(1)+'%</td>'
       +'<td style="font-family:var(--mono);color:'+hc+'">'+hr.toFixed(1)+'%</td>'
-      +'<td style="font-family:var(--mono)">'+parseFloat(s.avg_browse_conv||0).toFixed(3)+'</td>'
-      +'<td style="font-family:var(--mono)">'+parseFloat(s.avg_email_eng||0).toFixed(3)+'</td>'
-      +'<td style="font-family:var(--mono)">'+parseFloat(s.avg_eng_mult||1).toFixed(2)+'</td>'
+      +'<td style="font-family:var(--mono)">'+parseFloat(s.browse_score||0).toFixed(3)+'</td>'
+      +'<td style="font-family:var(--mono)">'+parseFloat(s.email_rate||0).toFixed(3)+'</td>'
+      +'<td style="font-family:var(--mono)">'+parseFloat(s.eng_mult||1).toFixed(2)+'</td>'
       +'<td style="font-family:var(--mono)">$'+parseFloat(s.avg_spend||0).toFixed(0)+'</td></tr>';
   }).join('');
 
@@ -1506,8 +1498,9 @@ function buildMainCharts(segs,churn,cltv,eng){
     plugins:{legend:{labels:{color:'#8b949e',font:{size:10,family:'JetBrains Mono'}}}},
     scales:{y:{grid:{color:GRID},ticks:TF()},y2:{position:'right',grid:{display:false},ticks:{...TF(),callback:v=>'$'+v}}}}});
 
+  const engTotal = eng.reduce((sum,e)=>sum+(e.customers||0),0);
   mkC('cEng',{type:'doughnut',data:{
-    labels:eng.map(e=>`${e.signal} (${e.pct}%)`),
+    labels:eng.map(e=>`${e.level} (${engTotal>0?(((e.customers||0)/engTotal)*100).toFixed(0):0}%)`),
     datasets:[{data:eng.map(e=>e.customers),backgroundColor:eng.map(e=>e.color||'#555'),borderWidth:2,borderColor:'#161b22',hoverOffset:8}]
   },options:{responsive:true,maintainAspectRatio:false,cutout:'55%',
     plugins:{legend:{position:'right',labels:{color:'#8b949e',font:{size:10,family:'JetBrains Mono'},boxWidth:10}}}}});

@@ -108,22 +108,69 @@ def get_mock_data(sql):
         # Calculate average CLTV and color codes
         avg_cltv = [int(t / c) if c > 0 else 0 for t, c in zip(total_cltv_value, customers)]
         dot_colors = []
-        for tier in cltv_tiers:
+        churn_pct = [round(p * 100, 1) for p in avg_churn_prob]
+        priorities = []
+        actions = []
+        
+        for i, tier in enumerate(cltv_tiers):
             if tier == "Platinum": dot_colors.append("#00c8ff")
             elif tier == "Gold": dot_colors.append("#f59e0b")
             elif tier == "Silver": dot_colors.append("#6b7280")
             elif tier == "Bronze": dot_colors.append("#78350f")
             else: dot_colors.append("#374151")
+            
+            # Determine priority
+            churn = churn_pct[i]
+            churn_seg = churn_risks[i]
+            
+            if churn >= 70 and tier in ['Platinum', 'Gold']:
+                priority = 'URGENT'
+            elif churn >= 40 or churn_seg == 'High Risk':
+                priority = 'HIGH'
+            elif churn_seg == 'Medium Risk':
+                priority = 'MONITOR'
+            else:
+                priority = 'LOW'
+            priorities.append(priority)
+            
+            # Determine action
+            if priority == 'URGENT':
+                if tier in ['Platinum', 'Gold']:
+                    action = 'Immediate executive intervention'
+                else:
+                    action = 'Win-back campaigns'
+            elif priority == 'HIGH':
+                if tier in ['Platinum', 'Gold']:
+                    action = 'VIP retention programs'
+                elif tier in ['Silver', 'Bronze']:
+                    action = 'Targeted retention offers'
+                else:
+                    action = 'Low-cost reactivation'
+            elif priority == 'MONITOR':
+                if churn >= 30:
+                    action = 'Engagement campaigns'
+                else:
+                    action = 'Low-cost reactivation'
+            else:  # LOW
+                if tier in ['Platinum', 'Gold']:
+                    action = 'Automated nurture'
+                else:
+                    action = 'Standard nurture'
+            actions.append(action)
         
         data = {
             "cltv_segment": cltv_tiers,
             "churn_segment": churn_risks,
             "customers": customers,
             "avg_churn_prob": avg_churn_prob,
+            "churn_pct": churn_pct,
             "total_cltv_value": total_cltv_value,
             "avg_cltv": avg_cltv,
             "total_cltv": total_cltv_value,
-            "dot_color": dot_colors
+            "dot_color": dot_colors,
+            "priority": priorities,
+            "action": actions,
+            "revenue_at_risk": total_cltv_value
         }
         df = pd.DataFrame(data)
         return df
@@ -140,9 +187,9 @@ def get_mock_data(sql):
     if "cltv_segment" in sql and "churn_segment" not in sql:
         # CLTV distribution
         return pd.DataFrame({
-            "tier": ["Platinum", "Gold", "Silver", "Bronze", "Dormant"],
+            "cltv_segment": ["Platinum", "Gold", "Silver", "Bronze", "Dormant"],
             "customers": [450, 1200, 2800, 5100, 3650],
-            "avg_value": [12500, 5800, 2100, 680, 120],
+            "avg_cltv": [12500, 5800, 2100, 680, 120],
             "total_value": [5625000, 6960000, 5880000, 3468000, 438000]
         })
     
@@ -166,7 +213,11 @@ def get_mock_data(sql):
             "avg_recency": [12, 35, 52, 120, 250, 8, 20, 45, 180],
             "avg_frequency": [24, 8, 4, 2, 1, 1, 2, 1, 0],
             "avg_monetary": [350, 120, 45, 18, 5, 8, 12, 6, 1],
-            "high_risk": [5, 45, 180, 580, 300, 50, 20, 95, 825]
+            "high_risk": [5, 45, 180, 580, 300, 50, 20, 95, 825],
+            "churn_prob": [0.08, 0.15, 0.25, 0.65, 0.88, 0.72, 0.40, 0.55, 0.92],
+            "browse_score": [0.92, 0.75, 0.62, 0.38, 0.12, 0.28, 0.45, 0.35, 0.08],
+            "email_rate": [0.85, 0.68, 0.52, 0.28, 0.10, 0.18, 0.32, 0.22, 0.05],
+            "eng_mult": [1.45, 1.15, 0.88, 0.55, 0.25, 0.35, 0.58, 0.42, 0.12]
         })
     
     if "COUNT(*)" in sql and "FROM" in sql and "total" not in [col.lower() for col in (sql.split("SELECT")[1].split("FROM")[0] if "SELECT" in sql else "").split(",")]:
@@ -193,17 +244,37 @@ def get_mock_data(sql):
     if "master_customer_id" in sql and "LIMIT 20" in sql:
         # Top customers
         data = []
+        segments = ["Champions", "Loyal", "Potential Loyalists"]
+        cltv_tiers = ["Platinum", "Gold", "Silver"]
+        churn_risks = ["Healthy", "Low Risk", "Medium Risk"]
+        browse_signals = ["Active", "Warm", "Cool", "Cold", "Dark"]
+        seg_colors = {
+            "Champions": "#00c8ff", "Loyal": "#22c55e", "Potential Loyalists": "#84cc16",
+            "At Risk": "#f59e0b", "Hibernating": "#6b7280", "Cart Abandoner": "#ef4444",
+            "Re-Engaged": "#3b82f6", "Window Shopper": "#a855f7", "Non-Buyer": "#4b5563"
+        }
+        
         for i in range(20):
+            seg = np.random.choice(segments)
             data.append({
-                "master_customer_id": f"CUST_{1000+i:04d}",
-                "rfm_segment_v2": np.random.choice(["Champions", "Loyal", "Potential Loyalists"]),
-                "cltv_segment": np.random.choice(["Platinum", "Gold", "Silver"]),
-                "cltv_value": np.random.randint(2000, 15000),
-                "total_spend": np.random.randint(1000, 8000),
-                "orders": np.random.randint(5, 50),
-                "days_since_order": np.random.randint(1, 90),
-                "churn_segment": "Healthy",
-                "churn_prob": round(np.random.random() * 0.2, 3)
+                "master_customer_id": f"CUST_{300000+i:06d}",
+                "rfm_segment_v2": seg,
+                "cltv_segment": np.random.choice(cltv_tiers),
+                "cltv_adjusted_v2": round(np.random.uniform(2000, 15000), 2),
+                "cltv_adjusted": round(np.random.uniform(1500, 12000), 2),
+                "monetary": round(np.random.uniform(1000, 8000), 2),
+                "frequency": np.random.randint(5, 50),
+                "recency": np.random.randint(1, 90),
+                "churn_segment": np.random.choice(churn_risks),
+                "churn_probability": round(np.random.random() * 0.3, 3),
+                "churn_browse_signal": np.random.choice(browse_signals),
+                "engagement_multiplier": np.random.choice([0.8, 1.0, 1.1, 1.2, 1.3]),
+                "cart_conversion_flag": np.random.randint(0, 2),
+                "is_net_returner": np.random.randint(0, 2),
+                "high_cancel_rate": np.random.randint(0, 2),
+                "latest_active_date": "2026-03-25",
+                "churn_model_version": "v2.1",
+                "color": seg_colors.get(seg, "#555")
             })
         return pd.DataFrame(data)
     
@@ -337,19 +408,39 @@ def api_segments():
                ROUND(AVG(recency),1)                                 AS avg_recency,
                ROUND(AVG(frequency),1)                               AS avg_frequency,
                ROUND(AVG(monetary),2)                                AS avg_monetary,
-               COUNT(CASE WHEN churn_segment='High Risk' THEN 1 END) AS high_risk
+               COUNT(CASE WHEN churn_segment='High Risk' THEN 1 END) AS high_risk,
+               ROUND(AVG(churn_probability),3)                       AS churn_prob,
+               ROUND(AVG(browse_conversion_score),3)                 AS browse_score,
+               ROUND(AVG(email_engagement_rate),3)                   AS email_rate,
+               ROUND(AVG(engagement_multiplier),2)                   AS eng_mult
         FROM {TABLE}
         WHERE {wh} AND rfm_segment_v2 IS NOT NULL
         GROUP BY rfm_segment_v2
     """)
     
-    # Enrich with metadata
+    # Enrich with metadata and calculate missing fields
     result = []
     for _, row in df.iterrows():
         seg = row['segment']
         meta = SEG_META.get(seg, {})
+        customers = int(row['customers']) if pd.notna(row['customers']) else 0
+        high_risk = int(row['high_risk']) if pd.notna(row['high_risk']) else 0
         result.append({
-            **row.to_dict(),
+            "segment": seg,
+            "customers": customers,
+            "avg_cltv": float(row['avg_cltv']) if pd.notna(row['avg_cltv']) else 0,
+            "total_value": int(row['total_value']) if pd.notna(row['total_value']) else 0,
+            "avg_recency": float(row['avg_recency']) if pd.notna(row['avg_recency']) else 0,
+            "avg_frequency": float(row['avg_frequency']) if pd.notna(row['avg_frequency']) else 0,
+            "avg_monetary": float(row['avg_monetary']) if pd.notna(row['avg_monetary']) else 0,
+            "high_risk": high_risk,
+            "churn_prob": float(row['churn_prob']) if pd.notna(row['churn_prob']) else 0,
+            "browse_score": float(row['browse_score']) if pd.notna(row['browse_score']) else 0,
+            "email_rate": float(row['email_rate']) if pd.notna(row['email_rate']) else 0,
+            "eng_mult": float(row['eng_mult']) if pd.notna(row['eng_mult']) else 0,
+            "avg_spend": float(row['avg_monetary']) if pd.notna(row['avg_monetary']) else 0,
+            "high_risk_count": high_risk,
+            "pct": (high_risk / customers * 100) if customers > 0 else 0,
             "color": meta.get("color", "#6b7280"),
             "emoji": meta.get("emoji", "📊"),
             "action": meta.get("action", "Standard nurture")
@@ -374,7 +465,10 @@ def api_cltv_dist():
     for _, row in df.iterrows():
         tier = row['tier']
         result.append({
-            **row.to_dict(),
+            "cltv_segment": tier,
+            "customers": int(row['customers']) if pd.notna(row['customers']) else 0,
+            "avg_cltv": float(row['avg_value']) if pd.notna(row['avg_value']) else 0,
+            "total_value": int(row['total_value']) if pd.notna(row['total_value']) else 0,
             "color": CLTV_C.get(tier, "#6b7280")
         })
     
@@ -397,7 +491,10 @@ def api_churn_dist():
     for _, row in df.iterrows():
         risk = row['risk_level']
         result.append({
-            **row.to_dict(),
+            "segment": risk,  # Add 'segment' field for legend display
+            "customers": int(row['customers']) if pd.notna(row['customers']) else 0,
+            "avg_probability": float(row['avg_probability']) if pd.notna(row['avg_probability']) else 0,
+            "value_at_risk": int(row['value_at_risk']) if pd.notna(row['value_at_risk']) else 0,
             "color": CHURN_C.get(risk, "#6b7280")
         })
     
@@ -434,18 +531,42 @@ def api_top_customers():
             master_customer_id,
             rfm_segment_v2,
             cltv_segment,
-            ROUND(cltv_adjusted_v2,2) AS cltv_value,
-            ROUND(monetary,2) AS total_spend,
-            frequency AS orders,
-            recency AS days_since_order,
+            ROUND(cltv_adjusted_v2,2) AS cltv_adjusted_v2,
+            ROUND(cltv_adjusted,2) AS cltv_adjusted,
+            ROUND(monetary,2) AS monetary,
+            frequency,
+            recency,
             churn_segment,
-            ROUND(churn_probability,3) AS churn_prob
+            ROUND(churn_probability,3) AS churn_probability,
+            churn_browse_signal,
+            engagement_multiplier,
+            cart_conversion_flag,
+            is_net_returner,
+            high_cancel_rate,
+            CAST(latest_active_date AS VARCHAR) AS latest_active_date,
+            churn_model_version
         FROM {TABLE}
         WHERE {wh} AND cltv_adjusted_v2 IS NOT NULL
         ORDER BY cltv_adjusted_v2 DESC
         LIMIT 20
     """)
-    return jsonify(df.to_dict(orient="records"))
+    result = df.to_dict(orient="records")
+    
+    # Add segment colors and ensure proper types
+    seg_colors = {
+        "Champions": "#00c8ff", "Loyal": "#22c55e", "Potential Loyalists": "#84cc16",
+        "At Risk": "#f59e0b", "Hibernating": "#6b7280", "Cart Abandoner": "#ef4444",
+        "Re-Engaged": "#3b82f6", "Window Shopper": "#a855f7", "Non-Buyer": "#4b5563"
+    }
+    
+    for row in result:
+        row['color'] = seg_colors.get(row.get('rfm_segment_v2'), '#555')
+        row['cart_conversion_flag'] = int(row.get('cart_conversion_flag', 0)) if pd.notna(row.get('cart_conversion_flag')) else 0
+        row['is_net_returner'] = int(row.get('is_net_returner', 0)) if pd.notna(row.get('is_net_returner')) else 0
+        row['high_cancel_rate'] = int(row.get('high_cancel_rate', 0)) if pd.notna(row.get('high_cancel_rate')) else 0
+        row['engagement_multiplier'] = float(row.get('engagement_multiplier', 1.0)) if pd.notna(row.get('engagement_multiplier')) else 1.0
+    
+    return jsonify(result)
 
 @app.route("/api/samples/<path:segment>")
 def api_samples(segment):
@@ -597,6 +718,7 @@ def api_cltv_churn_matrix():
     # Add calculated fields
     df['avg_cltv'] = (df['total_cltv_value'] / df['customers']).fillna(0).astype(int)
     df['total_cltv'] = df['total_cltv_value']
+    df['churn_pct'] = (df['avg_churn_prob'] * 100).round(1)  # Convert to percentage
     
     # Add color coding for CLTV segments
     cltv_colors = {
@@ -608,9 +730,63 @@ def api_cltv_churn_matrix():
     }
     df['dot_color'] = df['cltv_segment'].map(cltv_colors)
     
+    # Add priority and determine contextual actions based on churn and CLTV
+    def determine_priority_and_action(row):
+        churn = row['churn_pct']
+        cltv = row['cltv_segment']
+        churn_seg = row['churn_segment']
+        
+        # Priority determination
+        if churn >= 70 and cltv in ['Platinum', 'Gold']:
+            priority = 'URGENT'
+        elif churn >= 40 or churn_seg == 'High Risk':
+            priority = 'HIGH'
+        elif churn_seg == 'Medium Risk':
+            priority = 'MONITOR'
+        else:
+            priority = 'LOW'
+        
+        # Action determination based on priority and CLTV/Churn combination
+        if priority == 'URGENT':
+            if cltv in ['Platinum', 'Gold']:
+                action = 'Immediate executive intervention'
+            else:
+                action = 'Win-back campaigns'
+        elif priority == 'HIGH':
+            if cltv in ['Platinum', 'Gold']:
+                action = 'VIP retention programs'
+            elif cltv in ['Silver', 'Bronze']:
+                action = 'Targeted retention offers'
+            else:
+                action = 'Low-cost reactivation'
+        elif priority == 'MONITOR':
+            if churn >= 30:
+                action = 'Engagement campaigns'
+            else:
+                action = 'Low-cost reactivation'
+        else:  # LOW
+            if cltv in ['Platinum', 'Gold']:
+                action = 'Automated nurture'
+            else:
+                action = 'Standard nurture'
+        
+        return pd.Series({'priority': priority, 'action': action})
+    
+    priority_action = df.apply(determine_priority_and_action, axis=1)
+    df['priority'] = priority_action['priority']
+    df['action'] = priority_action['action']
+    
+    df['priority_color'] = df['churn_pct'].apply(lambda p: '#ef4444' if p >= 70 else '#f59e0b' if p >= 40 else '#22c55e')
+    df['revenue_at_risk'] = df['total_cltv_value']
+    
+    # Sort by priority (URGENT first, then HIGH) and by churn_pct descending
+    df['priority_order'] = df['priority'].apply(lambda p: 0 if p == 'URGENT' else 1)
+    df = df.sort_values(['priority_order', 'churn_pct'], ascending=[True, False])
+    
     # Return only the fields the frontend expects
     result = df[['cltv_segment', 'churn_segment', 'customers', 'avg_churn_prob', 
-                 'total_cltv_value', 'avg_cltv', 'total_cltv', 'dot_color']].to_dict(orient="records")
+                 'total_cltv_value', 'avg_cltv', 'total_cltv', 'dot_color', 'churn_pct',
+                 'priority', 'priority_color', 'action', 'revenue_at_risk']].to_dict(orient="records")
     
     return jsonify(result)
 
@@ -640,6 +816,55 @@ def api_cltv_churn_matrix_export():
         mimetype="text/csv",
         headers={"Content-Disposition": f"attachment; filename={fname}"}
     )
+
+@app.route("/api/predictions")
+def api_predictions():
+    """Revenue scenario predictions based on segment data"""
+    try:
+        wh = date_where(request.args.get("years","0"))
+        df = qdf(f"""
+            SELECT 
+                churn_segment,
+                rfm_segment_v2,
+                engagement_multiplier,
+                ROUND(SUM(cltv_adjusted_v2),0) AS total_cltv
+            FROM {TABLE}
+            WHERE {wh} AND cltv_adjusted_v2 IS NOT NULL AND cltv_adjusted_v2 > 0
+            GROUP BY churn_segment, rfm_segment_v2, engagement_multiplier
+        """)
+        
+        # Calculate scenario revenues
+        high_risk_rev = df[df['churn_segment'] == 'High Risk']['total_cltv'].sum()
+        med_risk_rev = df[df['churn_segment'] == 'Medium Risk']['total_cltv'].sum()
+        champions_rev = df[df['rfm_segment_v2'] == 'Champions']['total_cltv'].sum()
+        hot_leads_rev = df[df['engagement_multiplier'] == 1.3]['total_cltv'].sum()
+        cart_abandon = df[df['rfm_segment_v2'] == 'Cart Abandoner']['total_cltv'].sum() * 0.15
+        at_risk = df[df['churn_segment'].isin(['High Risk', 'Medium Risk'])]['total_cltv'].sum() * 0.20
+        reengaged = df[df['rfm_segment_v2'] == 'Re-Engaged']['total_cltv'].sum() * 0.25
+        window = df[df['rfm_segment_v2'] == 'Window Shopper']['total_cltv'].sum() * 0.05
+        
+    except Exception:
+        # Fallback mock data
+        high_risk_rev = 3254000
+        med_risk_rev = 2840000
+        champions_rev = 2624000
+        hot_leads_rev = 1850000
+        cart_abandon = 280000
+        at_risk = 650000
+        reengaged = 455000
+        window = 165000
+    
+    return jsonify({
+        "high_risk_revenue": int(high_risk_rev) if pd.notna(high_risk_rev) else 0,
+        "med_risk_revenue": int(med_risk_rev) if pd.notna(med_risk_rev) else 0,
+        "champions_value": int(champions_rev) if pd.notna(champions_rev) else 0,
+        "hot_leads_value": int(hot_leads_rev) if pd.notna(hot_leads_rev) else 0,
+        "cart_opp": int(cart_abandon) if pd.notna(cart_abandon) else 0,
+        "at_risk_save": int(at_risk) if pd.notna(at_risk) else 0,
+        "reengaged_opp": int(reengaged) if pd.notna(reengaged) else 0,
+        "window_opp": int(window) if pd.notna(window) else 0
+    })
+
 
 # ══════════════════════════════════════════════════════════
 # SERVE STATIC HTML
