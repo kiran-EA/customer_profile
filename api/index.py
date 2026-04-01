@@ -590,7 +590,29 @@ def api_cltv_churn_matrix():
         GROUP BY cltv_segment, churn_segment
         ORDER BY cltv_segment, churn_segment
     """)
-    return jsonify(df.to_dict(orient="records"))
+    
+    # Ensure numeric columns and rename for frontend compatibility
+    df[['customers', 'avg_churn_prob', 'total_cltv_value']] = df[['customers', 'avg_churn_prob', 'total_cltv_value']].apply(pd.to_numeric, errors='coerce')
+    
+    # Add calculated fields
+    df['avg_cltv'] = (df['total_cltv_value'] / df['customers']).fillna(0).astype(int)
+    df['total_cltv'] = df['total_cltv_value']
+    
+    # Add color coding for CLTV segments
+    cltv_colors = {
+        "Platinum": "#00c8ff",
+        "Gold": "#f59e0b", 
+        "Silver": "#6b7280",
+        "Bronze": "#78350f",
+        "Dormant": "#374151"
+    }
+    df['dot_color'] = df['cltv_segment'].map(cltv_colors)
+    
+    # Return only the fields the frontend expects
+    result = df[['cltv_segment', 'churn_segment', 'customers', 'avg_churn_prob', 
+                 'total_cltv_value', 'avg_cltv', 'total_cltv', 'dot_color']].to_dict(orient="records")
+    
+    return jsonify(result)
 
 @app.route("/api/cltv_churn_matrix/export")
 def api_cltv_churn_matrix_export():
